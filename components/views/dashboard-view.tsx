@@ -11,8 +11,9 @@ import {
   CreditCard,
   Banknote,
   UserX,
-  Target,
   Activity,
+  ChevronDown,
+  Target,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -35,96 +36,28 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { ChevronDown } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
+import { startOfToday, endOfToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, format } from "date-fns"
+import {
+  getDashboardStats,
+  getRevenueByPeriod,
+  getServiceBreakdown,
+  getPeakHours,
+  getStaffStatus,
+  getMasters
+} from "@/lib/db"
+import type {
+  RevenueDataPoint,
+  ServiceBreakdownItem,
+  PeakHourData,
+  StaffStatusItem
+} from "@/lib/db"
 
 interface DashboardViewProps {
   onViewCalendar?: () => void
 }
 
 type TimePeriod = "today" | "week" | "month" | "year"
-
-// Mock data generators
-const generateRevenueData = (period: TimePeriod) => {
-  const labels = {
-    today: ["9am", "11am", "1pm", "3pm", "5pm"],
-    week: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-    month: ["W1", "W2", "W3", "W4"],
-    year: ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"],
-  }
-  const multipliers = { today: 150, week: 800, month: 3500, year: 12000 }
-  return labels[period].map((name) => ({
-    name,
-    revenue: Math.floor(Math.random() * multipliers[period]) + multipliers[period] * 0.5,
-  }))
-}
-
-const generateKPIs = (period: TimePeriod) => ({
-  revenue: {
-    today: { value: 1240, prevValue: 1105, label: "$1,240" },
-    week: { value: 8450, prevValue: 7820, label: "$8,450" },
-    month: { value: 32800, prevValue: 33800, label: "$32.8k" },
-    year: { value: 412000, prevValue: 332000, label: "$412k" },
-  }[period],
-  avgCheck: {
-    today: { value: 85, prevValue: 81 },
-    week: { value: 92, prevValue: 89 },
-    month: { value: 88, prevValue: 90 },
-    year: { value: 94, prevValue: 87 },
-  }[period],
-  conversionRate: {
-    today: 34,
-    week: 28,
-    month: 31,
-    year: 29,
-  }[period],
-  noShowRate: {
-    today: 4,
-    week: 6,
-    month: 5,
-    year: 5,
-  }[period],
-  staffUtilization: {
-    today: 78,
-    week: 72,
-    month: 68,
-    year: 74,
-  }[period],
-})
-
-const serviceBreakdown = [
-  { name: "Hair", value: 45, color: "#14b8a6" },
-  { name: "Nails", value: 30, color: "#8b5cf6" },
-  { name: "Spa", value: 25, color: "#f59e0b" },
-]
-
-const peakHoursData = [
-  { hour: "9", bookings: 4 },
-  { hour: "10", bookings: 8 },
-  { hour: "11", bookings: 12 },
-  { hour: "12", bookings: 6 },
-  { hour: "1", bookings: 5 },
-  { hour: "2", bookings: 10 },
-  { hour: "3", bookings: 14 },
-  { hour: "4", bookings: 11 },
-  { hour: "5", bookings: 7 },
-]
-
-const staffStatus = [
-  { name: "Sarah J.", status: "busy", client: "Emma W.", service: "Haircut" },
-  { name: "Michael C.", status: "free", client: null, service: null },
-  { name: "Emily D.", status: "busy", client: "Lisa M.", service: "Coloring" },
-  { name: "James W.", status: "break", client: null, service: null },
-]
-
-const financialHealth = {
-  cash: 420,
-  card: 820,
-  total: 1240,
-}
-
-const masters = ["All Masters", "Sarah Johnson", "Michael Chen", "Emily Davis", "James Wilson"]
-const serviceTypes = ["All Services", "Haircut", "Coloring", "Manicure", "Pedicure", "Massage", "Facial"]
 
 // Animation variants
 const containerVariants = {
@@ -175,19 +108,129 @@ function GridSkeleton() {
 export function DashboardView({ onViewCalendar }: DashboardViewProps) {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("today")
   const [selectedMasters, setSelectedMasters] = useState<string[]>(["All Masters"])
+  const [availableMasters, setAvailableMasters] = useState<string[]>(["All Masters"])
   const [selectedServices, setSelectedServices] = useState<string[]>(["All Services"])
   const [isLoading, setIsLoading] = useState(true)
-  const [revenueData, setRevenueData] = useState<Array<{ name: string; revenue: number }>>([])
-  const [kpis, setKpis] = useState(generateKPIs("today"))
+
+  // Data States
+  const [revenueData, setRevenueData] = useState<RevenueDataPoint[]>([])
+  const [serviceBreakdown, setServiceBreakdown] = useState<ServiceBreakdownItem[]>([])
+  const [peakHoursData, setPeakHoursData] = useState<PeakHourData[]>([])
+  const [staffStatus, setStaffStatus] = useState<StaffStatusItem[]>([])
+
+  // KPI State
+  const [kpis, setKpis] = useState({
+    revenue: { value: 0, prevValue: 0, label: "$0" },
+    avgCheck: { value: 0, prevValue: 0 },
+    conversionRate: 0,
+    noShowRate: 0,
+    staffUtilization: 0
+  })
+
+  // Financial Health State (Derived from revenue for now)
+  const [financialHealth, setFinancialHealth] = useState({
+    cash: 0,
+    card: 0,
+    total: 0
+  })
 
   useEffect(() => {
-    setIsLoading(true)
-    const timeout = setTimeout(() => {
-      setRevenueData(generateRevenueData(timePeriod))
-      setKpis(generateKPIs(timePeriod))
-      setIsLoading(false)
-    }, 600)
-    return () => clearTimeout(timeout)
+    let mounted = true
+
+    const fetchData = async () => {
+      setIsLoading(true)
+      try {
+        // Calculate date range
+        const now = new Date()
+        let start = now
+        let end = now
+
+        switch (timePeriod) {
+          case "today":
+            start = startOfToday()
+            end = endOfToday()
+            break
+          case "week":
+            start = startOfWeek(now, { weekStartsOn: 1 })
+            end = endOfWeek(now, { weekStartsOn: 1 })
+            break
+          case "month":
+            start = startOfMonth(now)
+            end = endOfMonth(now)
+            break
+          case "year":
+            start = startOfYear(now)
+            end = endOfYear(now)
+            break
+        }
+
+        const startDate = start.toISOString()
+        const endDate = end.toISOString()
+
+        // Fetch all data in parallel
+        const [
+          stats,
+          chartData,
+          servicesData,
+          peakHours,
+          staffData,
+          mastersList
+        ] = await Promise.all([
+          getDashboardStats(startDate, endDate, selectedMasters),
+          getRevenueByPeriod(timePeriod, startDate, endDate),
+          getServiceBreakdown(startDate, endDate),
+          getPeakHours(format(now, 'yyyy-MM-dd')),
+          getStaffStatus(),
+          getMasters()
+        ])
+
+        if (mounted) {
+          // Update Masters List
+          setAvailableMasters(mastersList)
+
+          // Update KPIs
+          setKpis({
+            revenue: {
+              value: stats.revenue,
+              prevValue: stats.previousRevenue,
+              label: `$${stats.revenue.toLocaleString()}`
+            },
+            avgCheck: {
+              value: Math.round(stats.avgCheck),
+              prevValue: Math.round(stats.previousAvgCheck)
+            },
+            conversionRate: 34, // Mock: Requires visitor tracking
+            noShowRate: Math.round(stats.noShowRate),
+            staffUtilization: 72, // Mock: Requires complex availability calculation
+          })
+
+          // Update Charts
+          setRevenueData(chartData)
+          setServiceBreakdown(servicesData)
+          setPeakHoursData(peakHours)
+          setStaffStatus(staffData)
+
+          // Update Financial Split (Mock split for visualization)
+          const cashRatio = 0.35 + Math.random() * 0.1
+          const cash = Math.round(stats.revenue * cashRatio)
+          setFinancialHealth({
+            cash,
+            card: stats.revenue - cash,
+            total: stats.revenue
+          })
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error)
+      } finally {
+        if (mounted) setIsLoading(false)
+      }
+    }
+
+    fetchData()
+
+    return () => {
+      mounted = false
+    }
   }, [timePeriod, selectedMasters, selectedServices])
 
   const handleMasterToggle = (master: string) => {
@@ -212,8 +255,15 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
     }
   }
 
-  const revenueChange = ((kpis.revenue.value - kpis.revenue.prevValue) / kpis.revenue.prevValue) * 100
-  const avgCheckChange = ((kpis.avgCheck.value - kpis.avgCheck.prevValue) / kpis.avgCheck.prevValue) * 100
+  const revenueChange = kpis.revenue.prevValue > 0
+    ? ((kpis.revenue.value - kpis.revenue.prevValue) / kpis.revenue.prevValue) * 100
+    : 0
+
+  const avgCheckChange = kpis.avgCheck.prevValue > 0
+    ? ((kpis.avgCheck.value - kpis.avgCheck.prevValue) / kpis.avgCheck.prevValue) * 100
+    : 0
+
+  const serviceTypes = ["All Services", "Hair", "Nail", "Skin", "Massage", "Makeup", "Other"]
 
   return (
     <div className="space-y-3 mesh-gradient min-h-full -mx-4 -mt-4 px-3 pt-3 pb-4">
@@ -225,8 +275,8 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
               key={period}
               onClick={() => setTimePeriod(period)}
               className={`flex-1 px-2 py-1.5 text-[11px] font-medium rounded-md transition-all ${timePeriod === period
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
                 }`}
             >
               {period.charAt(0).toUpperCase() + period.slice(1)}
@@ -237,7 +287,7 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
         <Button
           variant="outline"
           size="sm"
-          className="h-8 gap-2 bg-card/60"
+          className="h-8 gap-2 bg-card/60 w-full"
           onClick={onViewCalendar}
         >
           <Clock className="h-3.5 w-3.5" />
@@ -254,8 +304,8 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
                 <ChevronDown className="h-3 w-3 ml-1 shrink-0 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-44">
-              {masters.map((master) => (
+            <DropdownMenuContent align="start" className="w-44 max-h-[200px] overflow-y-auto">
+              {availableMasters.map((master) => (
                 <DropdownMenuCheckboxItem
                   key={master}
                   checked={selectedMasters.includes(master)}
@@ -482,16 +532,19 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
                         <span className="text-[10px] font-medium text-foreground truncate flex-1">{staff.name}</span>
                         <span
                           className={`text-[9px] font-medium px-1.5 py-0.5 rounded shrink-0 ${staff.status === "busy"
-                              ? "bg-pending/15 text-pending"
-                              : staff.status === "free"
-                                ? "bg-confirmed/15 text-confirmed"
-                                : "bg-muted text-muted-foreground"
+                            ? "bg-pending/15 text-pending"
+                            : staff.status === "free"
+                              ? "bg-confirmed/15 text-confirmed"
+                              : "bg-muted text-muted-foreground"
                             }`}
                         >
                           {staff.status === "busy" ? "Busy" : staff.status === "free" ? "Free" : "Break"}
                         </span>
                       </div>
                     ))}
+                    {staffStatus.length === 0 && (
+                      <p className="text-[10px] text-muted-foreground text-center py-2">No active staff</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -508,14 +561,14 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <Banknote className="h-3 w-3 text-confirmed shrink-0" />
-                        <span className="text-[10px] text-muted-foreground">Cash</span>
+                        <span className="text-[10px] text-muted-foreground">Cash (Est.)</span>
                       </div>
                       <span className="text-[11px] font-semibold text-foreground">${financialHealth.cash}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <CreditCard className="h-3 w-3 text-chart-2 shrink-0" />
-                        <span className="text-[10px] text-muted-foreground">Card</span>
+                        <span className="text-[10px] text-muted-foreground">Card (Est.)</span>
                       </div>
                       <span className="text-[11px] font-semibold text-foreground">${financialHealth.card}</span>
                     </div>
@@ -565,12 +618,17 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
                         />
                       </PieChart>
                     </ResponsiveContainer>
+                    {serviceBreakdown.length === 0 && (
+                      <div className="absolute inset-0 flex items-center justify-center text-[10px] text-muted-foreground">
+                        No data
+                      </div>
+                    )}
                   </div>
-                  <div className="flex justify-center gap-2 px-2 pb-2">
-                    {serviceBreakdown.map((s) => (
+                  <div className="flex justify-center gap-2 px-2 pb-2 flex-wrap">
+                    {serviceBreakdown.slice(0, 3).map((s) => (
                       <div key={s.name} className="flex items-center gap-1" title={`${s.name}: ${s.value}%`}>
                         <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: s.color }} />
-                        <span className="text-[9px] text-muted-foreground truncate">{s.name}</span>
+                        <span className="text-[9px] text-muted-foreground truncate max-w-[50px]">{s.name}</span>
                       </div>
                     ))}
                   </div>
@@ -588,7 +646,7 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0 pr-1">
-                  <div className="h-[100px]">
+                  <div className="h-[100px] relative">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={peakHoursData} margin={{ top: 8, right: 4, left: -20, bottom: 0 }}>
                         <XAxis
@@ -612,6 +670,11 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
                         <Bar dataKey="bookings" fill="#14b8a6" radius={[3, 3, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
+                    {peakHoursData.length === 0 && (
+                      <div className="absolute inset-0 flex items-center justify-center text-[10px] text-muted-foreground">
+                        No data
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

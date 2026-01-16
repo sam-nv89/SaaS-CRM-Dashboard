@@ -233,3 +233,327 @@ export async function updateSettings(settings: Partial<BusinessSettings>): Promi
         return data
     }
 }
+
+// ============ DASHBOARD ANALYTICS ============
+
+export interface DashboardStats {
+    revenue: number
+    previousRevenue: number
+    appointmentCount: number
+    avgCheck: number
+    previousAvgCheck: number
+    noShowRate: number
+    confirmedCount: number
+    canceledCount: number
+    pendingCount: number
+}
+
+export interface RevenueDataPoint {
+    name: string
+    revenue: number
+}
+
+export interface ServiceBreakdownItem {
+    name: string
+    value: number
+    color: string
+}
+
+export interface PeakHourData {
+    hour: string
+    bookings: number
+}
+
+export interface StaffStatusItem {
+    name: string
+    status: 'busy' | 'free' | 'break'
+    client: string | null
+    service: string | null
+}
+
+/**
+ * Get dashboard statistics for a given date range
+ */
+export async function getDashboardStats(
+    startDate: string,
+    endDate: string,
+    masterFilter?: string[],
+    serviceFilter?: string[]
+): Promise<DashboardStats> {
+    // Get appointments with service prices
+    let query = supabase
+        .from('appointments')
+        .select(`
+            id,
+            status,
+            master_name,
+            service:services(price, name, category)
+        `)
+        .gte('date', startDate)
+        .lte('date', endDate)
+
+    if (masterFilter && masterFilter.length > 0 && !masterFilter.includes('All Masters')) {
+        query = query.in('master_name', masterFilter)
+    }
+
+    const { data: appointments, error } = await query
+
+    if (error) throw error
+
+    // Calculate stats
+    const confirmedAppointments = (appointments || []).filter((apt: { status: string }) => apt.status === 'confirmed')
+    const canceledAppointments = (appointments || []).filter((apt: { status: string }) => apt.status === 'canceled')
+    const pendingAppointments = (appointments || []).filter((apt: { status: string }) => apt.status === 'pending')
+
+    // Calculate revenue from confirmed appointments
+    let revenue = 0
+    confirmedAppointments.forEach((apt: unknown) => {
+        const appointment = apt as { service: { price: number } | { price: number }[] | null }
+        const service = Array.isArray(appointment.service) ? appointment.service[0] : appointment.service
+        if (service?.price) {
+            revenue += Number(service.price)
+        }
+    })
+
+    // Calculate average check
+    const avgCheck = confirmedAppointments.length > 0 ? revenue / confirmedAppointments.length : 0
+
+    // Calculate no-show rate
+    const totalAppointments = (appointments || []).length
+    const noShowRate = totalAppointments > 0
+        ? (canceledAppointments.length / totalAppointments) * 100
+        : 0
+
+    // Get previous period revenue for comparison (simplified)
+    const previousRevenue = revenue * (0.85 + Math.random() * 0.3) // Mock for now
+    const previousAvgCheck = avgCheck * (0.9 + Math.random() * 0.2)
+
+    return {
+        revenue,
+        previousRevenue,
+        appointmentCount: confirmedAppointments.length,
+        avgCheck,
+        previousAvgCheck,
+        noShowRate,
+        confirmedCount: confirmedAppointments.length,
+        canceledCount: canceledAppointments.length,
+        pendingCount: pendingAppointments.length,
+    }
+}
+
+/**
+ * Get revenue data for chart
+ */
+export async function getRevenueByPeriod(
+    period: 'today' | 'week' | 'month' | 'year',
+    startDate: string,
+    endDate: string
+): Promise<RevenueDataPoint[]> {
+    const { data: appointments, error } = await supabase
+        .from('appointments')
+        .select(`
+            date,
+            time,
+            status,
+            service:services(price)
+        `)
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .eq('status', 'confirmed')
+
+    if (error) throw error
+
+    // Group revenue by period
+    const revenueMap = new Map<string, number>()
+
+        ; (appointments || []).forEach((apt: unknown) => {
+            const a = apt as { date: string; time: string; service: { price: number } | { price: number }[] | null }
+            const service = Array.isArray(a.service) ? a.service[0] : a.service
+            let key: string
+            const date = new Date(a.date)
+
+            if (period === 'today') {
+                // Group by hour
+                const hour = a.time.split(':')[0]
+                key = `${parseInt(hour) > 12 ? parseInt(hour) - 12 : hour}${parseInt(hour) >= 12 ? 'pm' : 'am'}`
+            } else if (period === 'week') {
+                // Group by day name
+                const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                key = days[date.getDay()]
+            } else if (period === 'month') {
+                // Group by week
+                const weekNum = Math.ceil(date.getDate() / 7)
+                key = `W${weekNum}`
+            } else {
+                // Group by month
+                const months = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
+                key = months[date.getMonth()]
+            }
+
+            const currentRevenue = revenueMap.get(key) || 0
+            revenueMap.set(key, currentRevenue + (service?.price ? Number(service.price) : 0))
+        })
+
+    // Convert to array in proper order
+    const labels = {
+        today: ['9am', '10am', '11am', '12pm', '1pm', '2pm', '3pm', '4pm', '5pm'],
+        week: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        month: ['W1', 'W2', 'W3', 'W4'],
+        year: ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'],
+    }
+
+    return labels[period].map((name) => ({
+        name,
+        revenue: revenueMap.get(name) || 0,
+    }))
+}
+
+/**
+ * Get service breakdown by category
+ */
+export async function getServiceBreakdown(
+    startDate: string,
+    endDate: string
+): Promise<ServiceBreakdownItem[]> {
+    const { data: appointments, error } = await supabase
+        .from('appointments')
+        .select(`
+            service:services(category, price)
+        `)
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .eq('status', 'confirmed')
+
+    if (error) throw error
+
+    // Group by category
+    const categoryMap = new Map<string, number>()
+    let total = 0
+
+        ; (appointments || []).forEach((apt: unknown) => {
+            const a = apt as { service: { category: string; price: number } | { category: string; price: number }[] | null }
+            const service = Array.isArray(a.service) ? a.service[0] : a.service
+            if (service?.category) {
+                const current = categoryMap.get(service.category) || 0
+                const price = Number(service.price) || 0
+                categoryMap.set(service.category, current + price)
+                total += price
+            }
+        })
+
+    const colors: Record<string, string> = {
+        'Hair': '#14b8a6',
+        'Nail': '#8b5cf6',
+        'Skin': '#f59e0b',
+        'Massage': '#ec4899',
+        'Makeup': '#3b82f6',
+        'Other': '#6b7280',
+    }
+
+    return Array.from(categoryMap.entries()).map(([name, value]) => ({
+        name,
+        value: total > 0 ? Math.round((value / total) * 100) : 0,
+        color: colors[name] || colors['Other'],
+    }))
+}
+
+/**
+ * Get peak hours data
+ */
+export async function getPeakHours(date: string): Promise<PeakHourData[]> {
+    const { data: appointments, error } = await supabase
+        .from('appointments')
+        .select('time')
+        .eq('date', date)
+        .in('status', ['confirmed', 'pending'])
+
+    if (error) throw error
+
+    // Group by hour
+    const hourMap = new Map<string, number>()
+    const hours = ['9', '10', '11', '12', '1', '2', '3', '4', '5']
+    hours.forEach(h => hourMap.set(h, 0))
+
+        ; (appointments || []).forEach((apt: { time: string }) => {
+            let hour = parseInt(apt.time.split(':')[0])
+            if (hour > 12) hour -= 12
+            const hourStr = hour.toString()
+            if (hourMap.has(hourStr)) {
+                hourMap.set(hourStr, (hourMap.get(hourStr) || 0) + 1)
+            }
+        })
+
+    return hours.map(hour => ({
+        hour,
+        bookings: hourMap.get(hour) || 0,
+    }))
+}
+
+/**
+ * Get current staff status
+ */
+export async function getStaffStatus(): Promise<StaffStatusItem[]> {
+    const today = new Date().toISOString().split('T')[0]
+    const now = new Date()
+    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+
+    const { data: appointments, error } = await supabase
+        .from('appointments')
+        .select(`
+            master_name,
+            time,
+            end_time,
+            status,
+            client:clients(name),
+            service:services(name)
+        `)
+        .eq('date', today)
+        .eq('status', 'confirmed')
+
+    if (error) throw error
+
+    // Get unique masters
+    const masterSet = new Set<string>()
+        ; (appointments || []).forEach((apt: { master_name: string }) => masterSet.add(apt.master_name))
+
+    // Determine status for each master
+    return Array.from(masterSet).map(masterName => {
+        const currentAppointment = (appointments || []).find((apt: { master_name: string; time: string; end_time: string }) =>
+            apt.master_name === masterName &&
+            apt.time <= currentTime &&
+            apt.end_time > currentTime
+        ) as { client: { name: string } | null; service: { name: string } | null } | undefined
+
+        if (currentAppointment) {
+            return {
+                name: masterName,
+                status: 'busy' as const,
+                client: currentAppointment.client?.name || null,
+                service: currentAppointment.service?.name || null,
+            }
+        }
+
+        return {
+            name: masterName,
+            status: 'free' as const,
+            client: null,
+            service: null,
+        }
+    })
+}
+
+/**
+ * Get list of masters for filter
+ */
+export async function getMasters(): Promise<string[]> {
+    const { data, error } = await supabase
+        .from('appointments')
+        .select('master_name')
+
+    if (error) throw error
+
+    const mastersSet = new Set<string>()
+        ; (data || []).forEach((apt: { master_name: string }) => mastersSet.add(apt.master_name))
+
+    return ['All Masters', ...Array.from(mastersSet)]
+}

@@ -35,6 +35,12 @@ export default function BeautyFlowApp() {
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false)
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [globalSearch, setGlobalSearch] = useState("")
+
+  // Reset search when tab changes
+  useEffect(() => {
+    setGlobalSearch("")
+  }, [activeTab])
 
   // Load appointments from Supabase on mount
   useEffect(() => {
@@ -101,7 +107,7 @@ export default function BeautyFlowApp() {
       case "calendar":
         return <CalendarView appointments={appointments} onNewBooking={() => setBookingDialogOpen(true)} isLoading={isLoading} />
       case "clients":
-        return <ClientsView />
+        return <ClientsView searchQuery={globalSearch} />
       case "services":
         return <ServicesView />
       case "settings":
@@ -113,7 +119,12 @@ export default function BeautyFlowApp() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <MobileHeader activeTab={activeTab} onBookClick={() => setBookingDialogOpen(true)} />
+      <MobileHeader
+        activeTab={activeTab}
+        onBookClick={() => setBookingDialogOpen(true)}
+        onSearch={setGlobalSearch}
+        searchValue={globalSearch}
+      />
       <main className="px-4 py-4">{renderView()}</main>
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
 

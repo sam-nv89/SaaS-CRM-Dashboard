@@ -1,15 +1,16 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Plus, MoreHorizontal, Phone, Loader2 } from "lucide-react"
+import { Search, Plus, MoreHorizontal, Phone, Loader2, Trash2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { AddClientSheet } from "@/components/dialogs/add-client-sheet"
-import { getClients, createClient } from "@/lib/db"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
+import { ClientSheet } from "@/components/dialogs/client-sheet"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { getClients, createClient, updateClient, deleteClient } from "@/lib/db"
 import type { Client } from "@/types/database"
 import { toast } from "sonner"
 
@@ -21,10 +22,19 @@ const statusStyles: Record<ClientStatus, string> = {
   vip: "bg-chart-5/10 text-chart-5 border-chart-5/20",
 }
 
-export function ClientsView() {
-  const [searchQuery, setSearchQuery] = useState("")
+interface ClientsViewProps {
+  searchQuery?: string
+}
+
+export function ClientsView({ searchQuery: externalSearchQuery }: ClientsViewProps) {
+  const [internalSearchQuery, setInternalSearchQuery] = useState("")
+  const searchQuery = externalSearchQuery ?? internalSearchQuery
+
   const [clients, setClients] = useState<Client[]>([])
-  const [addSheetOpen, setAddSheetOpen] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [clientToEdit, setClientToEdit] = useState<Client | undefined>(undefined)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   // Load clients from Supabase on mount
@@ -58,23 +68,64 @@ export function ClientsView() {
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
   }
 
-  const handleAddClient = async (newClient: { name: string; phone: string; email: string; notes?: string }) => {
+  const handleSaveClient = async (data: { name: string; phone: string; email: string; notes?: string }) => {
     try {
-      const created = await createClient({
-        name: newClient.name,
-        phone: newClient.phone,
-        email: newClient.email,
-        notes: newClient.notes,
-        status: "new",
-        total_visits: 0,
-      })
-      setClients((prev) => [created, ...prev])
-      toast.success("Client added!", {
-        description: `${newClient.name} has been added to your client list.`,
-      })
+      if (clientToEdit) {
+        // Update
+        const updated = await updateClient({
+          id: clientToEdit.id,
+          ...data
+        })
+        setClients((prev) => prev.map(c => c.id === updated.id ? updated : c))
+        toast.success("Client updated")
+      } else {
+        // Create
+        const created = await createClient({
+          name: data.name,
+          phone: data.phone,
+          email: data.email,
+          notes: data.notes,
+          status: "new",
+          total_visits: 0,
+        })
+        setClients((prev) => [created, ...prev])
+        toast.success("Client added")
+      }
     } catch (error) {
-      console.error('Error creating client:', error)
-      toast.error('Failed to add client')
+      console.error('Error saving client:', error)
+      toast.error('Failed to save client')
+      throw error // Re-throw to let the sheet handle loading state if needed
+    }
+  }
+
+  const openAddSheet = () => {
+    setClientToEdit(undefined)
+    setSheetOpen(true)
+  }
+
+  const openEditSheet = (client: Client) => {
+    setClientToEdit(client)
+    setSheetOpen(true)
+  }
+
+  const confirmDelete = (client: Client) => {
+    setClientToDelete(client)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDelete = async () => {
+    if (!clientToDelete) return
+
+    try {
+      await deleteClient(clientToDelete.id)
+      setClients((prev) => prev.filter(c => c.id !== clientToDelete.id))
+      toast.success("Client deleted")
+    } catch (error) {
+      console.error('Error deleting client:', error)
+      toast.error('Failed to delete client')
+    } finally {
+      setDeleteDialogOpen(false)
+      setClientToDelete(null)
     }
   }
 
@@ -89,24 +140,37 @@ export function ClientsView() {
   return (
     <div className="space-y-4">
       {/* Search & Add */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search clients..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-10 bg-card border border-border focus:ring-2 focus:ring-primary/20 transition-all"
-          />
+      {!externalSearchQuery && (
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search clients..."
+              value={internalSearchQuery}
+              onChange={(e) => setInternalSearchQuery(e.target.value)}
+              className="pl-9 h-10 bg-card border border-border focus:ring-2 focus:ring-primary/20 transition-all"
+            />
+          </div>
+          <Button
+            size="icon"
+            className="h-10 w-10 bg-primary hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
+            onClick={openAddSheet}
+          >
+            <Plus className="h-5 w-5" />
+          </Button>
         </div>
-        <Button
-          size="icon"
-          className="h-10 w-10 bg-primary hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
-          onClick={() => setAddSheetOpen(true)}
-        >
-          <Plus className="h-5 w-5" />
-        </Button>
-      </div>
+      )}
+
+      {externalSearchQuery && (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            onClick={openAddSheet}
+          >
+            <Plus className="h-4 w-4 mr-1" /> Add Client
+          </Button>
+        </div>
+      )}
 
       {/* Client Count */}
       <div className="flex items-center justify-between">
@@ -145,9 +209,19 @@ export function ClientsView() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-40">
-                      <DropdownMenuItem className="cursor-pointer">View Profile</DropdownMenuItem>
-                      <DropdownMenuItem className="cursor-pointer">Edit</DropdownMenuItem>
-                      <DropdownMenuItem className="cursor-pointer">Book Appointment</DropdownMenuItem>
+                      <DropdownMenuItem className="cursor-pointer" onClick={() => openEditSheet(client)}>
+                        Edit Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="cursor-pointer">
+                        View Profile
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="cursor-pointer text-destructive focus:text-destructive"
+                        onClick={() => confirmDelete(client)}
+                      >
+                        Delete Client
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -173,7 +247,31 @@ export function ClientsView() {
         </div>
       )}
 
-      <AddClientSheet open={addSheetOpen} onOpenChange={setAddSheetOpen} onClientAdded={handleAddClient} />
+      <ClientSheet
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onClientSaved={handleSaveClient}
+        clientToEdit={clientToEdit}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the client
+              {clientToDelete && <strong> {clientToDelete.name} </strong>}
+              from the database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

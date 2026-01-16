@@ -9,6 +9,8 @@ import type { TabId } from "@/app/page"
 interface MobileHeaderProps {
   activeTab: TabId
   onBookClick: () => void
+  onSearch?: (query: string) => void
+  searchValue?: string
 }
 
 const tabTitles: Record<TabId, string> = {
@@ -19,7 +21,7 @@ const tabTitles: Record<TabId, string> = {
   settings: "Settings",
 }
 
-export function MobileHeader({ activeTab, onBookClick }: MobileHeaderProps) {
+export function MobileHeader({ activeTab, onBookClick, onSearch, searchValue }: MobileHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false)
   const [currentDate] = useState(new Date())
 
@@ -81,7 +83,10 @@ export function MobileHeader({ activeTab, onBookClick }: MobileHeaderProps) {
           <div className="mt-3">
             <Input
               placeholder="Search client or booking..."
+              value={searchValue || ""}
+              onChange={(e) => onSearch?.(e.target.value)}
               className="h-10 bg-card border border-border focus:ring-2 focus:ring-primary/20 transition-all"
+              autoFocus
             />
           </div>
         )}

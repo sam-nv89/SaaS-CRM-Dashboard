@@ -224,16 +224,25 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
             <button
               key={period}
               onClick={() => setTimePeriod(period)}
-              className={`flex-1 px-2 py-1.5 text-[11px] font-medium rounded-md transition-all ${
-                timePeriod === period
+              className={`flex-1 px-2 py-1.5 text-[11px] font-medium rounded-md transition-all ${timePeriod === period
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
-              }`}
+                }`}
             >
               {period.charAt(0).toUpperCase() + period.slice(1)}
             </button>
           ))}
         </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-2 bg-card/60"
+          onClick={onViewCalendar}
+        >
+          <Clock className="h-3.5 w-3.5" />
+          <span className="text-[11px]">View Calendar</span>
+        </Button>
 
         <div className="flex gap-2">
           <DropdownMenu>
@@ -472,13 +481,12 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
                       <div key={staff.name} className="flex items-center justify-between gap-1 min-w-0">
                         <span className="text-[10px] font-medium text-foreground truncate flex-1">{staff.name}</span>
                         <span
-                          className={`text-[9px] font-medium px-1.5 py-0.5 rounded shrink-0 ${
-                            staff.status === "busy"
+                          className={`text-[9px] font-medium px-1.5 py-0.5 rounded shrink-0 ${staff.status === "busy"
                               ? "bg-pending/15 text-pending"
                               : staff.status === "free"
                                 ? "bg-confirmed/15 text-confirmed"
                                 : "bg-muted text-muted-foreground"
-                          }`}
+                            }`}
                         >
                           {staff.status === "busy" ? "Busy" : staff.status === "free" ? "Free" : "Break"}
                         </span>

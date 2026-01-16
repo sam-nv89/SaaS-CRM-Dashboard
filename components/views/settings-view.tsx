@@ -160,15 +160,31 @@ export function SettingsView() {
               </div>
               <div className="space-y-2">
                 <Label className="text-sm">Logo</Label>
-                <Button
-                  variant="outline"
-                  className="w-full h-20 border-dashed bg-transparent hover:bg-secondary/50 transition-colors"
-                >
-                  <div className="flex flex-col items-center gap-2">
-                    <Upload className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Upload Logo</span>
-                  </div>
-                </Button>
+                <div className="relative">
+                  <Input
+                    type="file"
+                    className="hidden"
+                    id="logo-upload"
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) {
+                        toast.success("Logo uploaded successfully", {
+                          description: "This is a demo feature. Real storage not connected."
+                        })
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    className="w-full h-20 border-dashed bg-transparent hover:bg-secondary/50 transition-colors"
+                    onClick={() => document.getElementById('logo-upload')?.click()}
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <Upload className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">Upload Logo</span>
+                    </div>
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

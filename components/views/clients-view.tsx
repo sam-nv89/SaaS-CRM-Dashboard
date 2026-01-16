@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Search, Plus, MoreHorizontal, Phone } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Search, Plus, MoreHorizontal, Phone, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -9,84 +9,11 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { AddClientSheet } from "@/components/dialogs/add-client-sheet"
+import { getClients, createClient } from "@/lib/db"
+import type { Client } from "@/types/database"
+import { toast } from "sonner"
 
 type ClientStatus = "new" | "regular" | "vip"
-
-interface Client {
-  id: string
-  name: string
-  phone: string
-  email: string
-  lastVisit: string
-  status: ClientStatus
-  totalVisits: number
-}
-
-const initialClients: Client[] = [
-  {
-    id: "1",
-    name: "Sarah Johnson",
-    phone: "+1 234-567-8901",
-    email: "sarah@email.com",
-    lastVisit: "2024-01-15",
-    status: "vip",
-    totalVisits: 24,
-  },
-  {
-    id: "2",
-    name: "Michael Chen",
-    phone: "+1 234-567-8902",
-    email: "michael@email.com",
-    lastVisit: "2024-01-14",
-    status: "regular",
-    totalVisits: 12,
-  },
-  {
-    id: "3",
-    name: "Emily Davis",
-    phone: "+1 234-567-8903",
-    email: "emily@email.com",
-    lastVisit: "2024-01-13",
-    status: "new",
-    totalVisits: 2,
-  },
-  {
-    id: "4",
-    name: "James Wilson",
-    phone: "+1 234-567-8904",
-    email: "james@email.com",
-    lastVisit: "2024-01-12",
-    status: "regular",
-    totalVisits: 8,
-  },
-  {
-    id: "5",
-    name: "Lisa Anderson",
-    phone: "+1 234-567-8905",
-    email: "lisa@email.com",
-    lastVisit: "2024-01-10",
-    status: "vip",
-    totalVisits: 30,
-  },
-  {
-    id: "6",
-    name: "David Brown",
-    phone: "+1 234-567-8906",
-    email: "david@email.com",
-    lastVisit: "2024-01-08",
-    status: "new",
-    totalVisits: 1,
-  },
-  {
-    id: "7",
-    name: "Jennifer Lee",
-    phone: "+1 234-567-8907",
-    email: "jennifer@email.com",
-    lastVisit: "2024-01-05",
-    status: "regular",
-    totalVisits: 15,
-  },
-]
 
 const statusStyles: Record<ClientStatus, string> = {
   new: "bg-chart-3/10 text-chart-3 border-chart-3/20",
@@ -96,29 +23,67 @@ const statusStyles: Record<ClientStatus, string> = {
 
 export function ClientsView() {
   const [searchQuery, setSearchQuery] = useState("")
-  const [clients, setClients] = useState(initialClients)
+  const [clients, setClients] = useState<Client[]>([])
   const [addSheetOpen, setAddSheetOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Load clients from Supabase on mount
+  useEffect(() => {
+    loadClients()
+  }, [])
+
+  const loadClients = async () => {
+    try {
+      setIsLoading(true)
+      const data = await getClients()
+      setClients(data)
+    } catch (error) {
+      console.error('Error loading clients:', error)
+      toast.error('Failed to load clients')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const filteredClients = clients.filter(
     (client) =>
       client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       client.phone.includes(searchQuery) ||
-      client.email.toLowerCase().includes(searchQuery.toLowerCase()),
+      client.email?.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateStr: string | undefined) => {
+    if (!dateStr) return "No visits"
     const date = new Date(dateStr)
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
   }
 
-  const handleAddClient = (newClient: { id: string; name: string; phone: string; email: string }) => {
-    const client: Client = {
-      ...newClient,
-      lastVisit: new Date().toISOString().split("T")[0],
-      status: "new",
-      totalVisits: 0,
+  const handleAddClient = async (newClient: { name: string; phone: string; email: string; notes?: string }) => {
+    try {
+      const created = await createClient({
+        name: newClient.name,
+        phone: newClient.phone,
+        email: newClient.email,
+        notes: newClient.notes,
+        status: "new",
+        total_visits: 0,
+      })
+      setClients((prev) => [created, ...prev])
+      toast.success("Client added!", {
+        description: `${newClient.name} has been added to your client list.`,
+      })
+    } catch (error) {
+      console.error('Error creating client:', error)
+      toast.error('Failed to add client')
     }
-    setClients((prev) => [client, ...prev])
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (
@@ -166,7 +131,7 @@ export function ClientsView() {
                   </Avatar>
                   <div>
                     <p className="font-medium text-foreground">{client.name}</p>
-                    <p className="text-xs text-muted-foreground">{client.totalVisits} visits</p>
+                    <p className="text-xs text-muted-foreground">{client.total_visits} visits</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -195,14 +160,14 @@ export function ClientsView() {
                     {client.phone}
                   </span>
                 </div>
-                <span className="text-muted-foreground text-xs">Last: {formatDate(client.lastVisit)}</span>
+                <span className="text-muted-foreground text-xs">Last: {formatDate(client.last_visit)}</span>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {filteredClients.length === 0 && (
+      {filteredClients.length === 0 && !isLoading && (
         <div className="text-center py-12">
           <p className="text-muted-foreground">No clients found</p>
         </div>

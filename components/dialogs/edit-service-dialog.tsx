@@ -7,20 +7,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-
-interface Service {
-  id: string
-  name: string
-  duration: string
-  price: number
-  active: boolean
-}
+import type { Service } from "@/types/database"
 
 interface EditServiceDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   service: Service | null
-  onServiceUpdated: (service: Service) => void
+  onServiceUpdated: (service: Service) => void | Promise<void>
 }
 
 export function EditServiceDialog({ open, onOpenChange, service, onServiceUpdated }: EditServiceDialogProps) {

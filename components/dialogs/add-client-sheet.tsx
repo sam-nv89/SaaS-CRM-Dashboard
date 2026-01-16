@@ -20,7 +20,7 @@ interface Client {
 interface AddClientSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onClientAdded: (client: Client) => void
+  onClientAdded: (client: { name: string; phone: string; email: string; notes?: string }) => void
 }
 
 export function AddClientSheet({ open, onOpenChange, onClientAdded }: AddClientSheetProps) {

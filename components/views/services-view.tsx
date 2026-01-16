@@ -1,20 +1,15 @@
 "use client"
 
-import { useState } from "react"
-import { Edit2, Clock, DollarSign, ChevronDown, ChevronUp } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Edit2, Clock, DollarSign, ChevronDown, ChevronUp, Loader2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { EditServiceDialog } from "@/components/dialogs/edit-service-dialog"
-
-interface Service {
-  id: string
-  name: string
-  duration: string
-  price: number
-  active: boolean
-}
+import { getServices, updateService } from "@/lib/db"
+import type { Service } from "@/types/database"
+import { toast } from "sonner"
 
 interface ServiceCategory {
   id: string
@@ -22,51 +17,49 @@ interface ServiceCategory {
   services: Service[]
 }
 
-const initialCategories: ServiceCategory[] = [
-  {
-    id: "hair",
-    name: "Hair",
-    services: [
-      { id: "1", name: "Haircut", duration: "45 min", price: 45, active: true },
-      { id: "2", name: "Hair Coloring", duration: "2h", price: 120, active: true },
-      { id: "3", name: "Balayage", duration: "2.5h", price: 180, active: true },
-      { id: "4", name: "Hair Treatment", duration: "1h", price: 65, active: false },
-    ],
-  },
-  {
-    id: "nails",
-    name: "Nails",
-    services: [
-      { id: "5", name: "Manicure", duration: "45 min", price: 35, active: true },
-      { id: "6", name: "Pedicure", duration: "1h", price: 45, active: true },
-      { id: "7", name: "Gel Nails", duration: "1.5h", price: 55, active: true },
-    ],
-  },
-  {
-    id: "beauty",
-    name: "Beauty",
-    services: [
-      { id: "8", name: "Facial", duration: "1h", price: 80, active: true },
-      { id: "9", name: "Eyebrow Shaping", duration: "30 min", price: 25, active: true },
-      { id: "10", name: "Lash Extensions", duration: "2h", price: 150, active: false },
-    ],
-  },
-  {
-    id: "men",
-    name: "Men's Grooming",
-    services: [
-      { id: "11", name: "Men's Haircut", duration: "30 min", price: 30, active: true },
-      { id: "12", name: "Beard Trim", duration: "20 min", price: 20, active: true },
-      { id: "13", name: "Hot Towel Shave", duration: "45 min", price: 40, active: true },
-    ],
-  },
-]
-
 export function ServicesView() {
-  const [categories, setCategories] = useState(initialCategories)
-  const [openCategories, setOpenCategories] = useState<string[]>(["hair", "nails"])
+  const [categories, setCategories] = useState<ServiceCategory[]>([])
+  const [openCategories, setOpenCategories] = useState<string[]>([])
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingService, setEditingService] = useState<Service | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Load services from Supabase on mount
+  useEffect(() => {
+    loadServices()
+  }, [])
+
+  const loadServices = async () => {
+    try {
+      setIsLoading(true)
+      const services = await getServices()
+
+      // Group services by category
+      const grouped = services.reduce((acc, service) => {
+        const category = service.category || 'Other'
+        if (!acc[category]) {
+          acc[category] = []
+        }
+        acc[category].push(service)
+        return acc
+      }, {} as Record<string, Service[]>)
+
+      const categoryList: ServiceCategory[] = Object.entries(grouped).map(([name, services]) => ({
+        id: name.toLowerCase().replace(/\s+/g, '-'),
+        name,
+        services,
+      }))
+
+      setCategories(categoryList)
+      // Open first two categories by default
+      setOpenCategories(categoryList.slice(0, 2).map(c => c.id))
+    } catch (error) {
+      console.error('Error loading services:', error)
+      toast.error('Failed to load services')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const toggleCategory = (categoryId: string) => {
     setOpenCategories((prev) =>
@@ -74,17 +67,32 @@ export function ServicesView() {
     )
   }
 
-  const toggleServiceActive = (categoryId: string, serviceId: string) => {
+  const toggleServiceActive = async (categoryId: string, serviceId: string) => {
+    // Optimistic update
     setCategories((prev) =>
       prev.map((cat) =>
         cat.id === categoryId
           ? {
-              ...cat,
-              services: cat.services.map((svc) => (svc.id === serviceId ? { ...svc, active: !svc.active } : svc)),
-            }
+            ...cat,
+            services: cat.services.map((svc) => (svc.id === serviceId ? { ...svc, active: !svc.active } : svc)),
+          }
           : cat,
       ),
     )
+
+    // Find the service and update in Supabase
+    const category = categories.find(c => c.id === categoryId)
+    const service = category?.services.find(s => s.id === serviceId)
+    if (service) {
+      try {
+        await updateService({ id: serviceId, active: !service.active })
+      } catch (error) {
+        console.error('Error updating service:', error)
+        toast.error('Failed to update service')
+        // Revert on error
+        loadServices()
+      }
+    }
   }
 
   const handleEditService = (service: Service) => {
@@ -92,12 +100,32 @@ export function ServicesView() {
     setEditDialogOpen(true)
   }
 
-  const handleServiceUpdated = (updatedService: Service) => {
-    setCategories((prev) =>
-      prev.map((cat) => ({
-        ...cat,
-        services: cat.services.map((svc) => (svc.id === updatedService.id ? updatedService : svc)),
-      })),
+  const handleServiceUpdated = async (updatedService: Service) => {
+    try {
+      await updateService({
+        id: updatedService.id,
+        price: updatedService.price,
+        duration: updatedService.duration,
+      })
+
+      setCategories((prev) =>
+        prev.map((cat) => ({
+          ...cat,
+          services: cat.services.map((svc) => (svc.id === updatedService.id ? updatedService : svc)),
+        })),
+      )
+      toast.success("Service updated!")
+    } catch (error) {
+      console.error('Error updating service:', error)
+      toast.error('Failed to update service')
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     )
   }
 

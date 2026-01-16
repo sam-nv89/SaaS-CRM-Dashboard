@@ -1,12 +1,14 @@
 "use client"
 
-import { Bell, Plus, Search, ChevronLeft, ChevronRight, Calendar, Clock, AlertCircle, X } from "lucide-react"
+import { Bell, Plus, Search, ChevronLeft, ChevronRight, Calendar, Clock, AlertCircle, X, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useState } from "react"
 import type { TabId } from "@/app/page"
+import { supabase } from "@/lib/supabase"
+import { useRouter } from "next/navigation"
 
 interface MobileHeaderProps {
   activeTab: TabId
@@ -37,6 +39,7 @@ export function MobileHeader({
   onNextDay,
 }: MobileHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false)
+  const router = useRouter()
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-US", {
@@ -44,6 +47,11 @@ export function MobileHeader({
       month: "short",
       day: "numeric",
     })
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.refresh() // This will trigger middleware to redirect to /login
   }
 
   return (
@@ -132,6 +140,17 @@ export function MobileHeader({
                 </div>
               </PopoverContent>
             </Popover>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 hover:bg-secondary transition-colors"
+              onClick={handleLogout}
+              title="Log Out"
+            >
+              <LogOut className="h-5 w-5 text-muted-foreground" />
+            </Button>
+
             <Button
               size="sm"
               className="h-9 bg-primary hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"

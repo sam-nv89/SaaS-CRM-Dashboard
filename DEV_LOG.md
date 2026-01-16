@@ -119,8 +119,42 @@
 4. **Settings:** Добавлена заглушка загрузки логотипа (симуляция).
 
 **Текущий статус:** Все задачи Приоритета 2 выполнены. Проект стабилен. Терминал исправлен.
-READY FOR REVIEW.дарю.
+READY FOR REVIEW.
 
 **Задачи (Приоритет 2):**
 1. **Calendar View:** Реализация навигации по датам, переключения режимов (Day/Week).
 2. **Dashboard:** Подключение навигации к календарю.
+
+---
+
+### Сессия: Фаза 3 — Исправление критических проблем
+
+**Дата:** 2026-01-16
+**Автор:** Antigravity Agent
+
+**Выполнено (Приоритет 1):**
+
+1. **Исправлен маппинг данных Appointments:**
+   - Добавлен тип `AppointmentWithDetails` в `types/database.ts` для JOIN-результатов.
+   - Создана функция `getAppointmentsWithDetails()` в `lib/db.ts` с Supabase JOIN-запросом.
+   - Обновлён `app/page.tsx`: теперь `clientName` и `service` берутся из связанных таблиц.
+
+2. **Синхронизирован стейт даты:**
+   - `currentDate` перенесён из локальных компонентов в `app/page.tsx`.
+   - Добавлены обработчики `handlePrevDay`, `handleNextDay`, `handleToday`.
+   - Обновлены интерфейсы `CalendarViewProps` и `MobileHeaderProps`.
+
+3. **Оживлена навигация по датам в Header:**
+   - Кнопки `ChevronLeft/Right` в `mobile-header.tsx` теперь вызывают `onPrevDay`/`onNextDay`.
+   - Дата в шапке синхронизирована с календарём.
+
+**Файлы изменены:**
+- `types/database.ts` — добавлен `AppointmentWithDetails`
+- `lib/db.ts` — добавлен `getAppointmentsWithDetails()`
+- `app/page.tsx` — рефакторинг: lifted state, фикс маппинга
+- `components/views/calendar-view.tsx` — рефакторинг: пропсы вместо локального стейта
+- `components/mobile-header.tsx` — рефакторинг: пропсы вместо локального стейта
+
+**Статус сборки:** ✅ Build successful
+
+**Коммит:** feat: fix appointments data mapping and sync date state

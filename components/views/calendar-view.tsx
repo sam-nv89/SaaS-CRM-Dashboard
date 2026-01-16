@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { format, addDays, subDays, isSameDay, parseISO } from "date-fns"
+import { format, isSameDay, parseISO } from "date-fns"
 import type { Appointment } from "@/app/page"
 
 type AppointmentStatus = "confirmed" | "pending" | "canceled"
@@ -15,6 +15,10 @@ interface CalendarViewProps {
   appointments: Appointment[]
   onNewBooking: () => void
   isLoading?: boolean
+  currentDate: Date
+  onPrevDay: () => void
+  onNextDay: () => void
+  onToday: () => void
 }
 
 const statusStyles: Record<AppointmentStatus, string> = {
@@ -26,14 +30,17 @@ const statusStyles: Record<AppointmentStatus, string> = {
 const filters = ["All", "Confirmed", "Pending", "Canceled"] as const
 const viewModes = ["Day", "Week"] as const
 
-export function CalendarView({ appointments, onNewBooking, isLoading }: CalendarViewProps) {
+export function CalendarView({
+  appointments,
+  onNewBooking,
+  isLoading,
+  currentDate,
+  onPrevDay,
+  onNextDay,
+  onToday,
+}: CalendarViewProps) {
   const [activeFilter, setActiveFilter] = useState<string>("All")
   const [viewMode, setViewMode] = useState<string>("Day")
-  const [currentDate, setCurrentDate] = useState(new Date())
-
-  const handlePrevDay = () => setCurrentDate((prev) => subDays(prev, 1))
-  const handleNextDay = () => setCurrentDate((prev) => addDays(prev, 1))
-  const handleToday = () => setCurrentDate(new Date())
 
   const formattedDate = format(currentDate, "EEEE, MMMM d")
 
@@ -60,11 +67,11 @@ export function CalendarView({ appointments, onNewBooking, isLoading }: Calendar
     <div className="space-y-4">
       {/* Date Navigation */}
       <div className="flex items-center justify-between bg-card p-2 rounded-xl border border-border shadow-sm">
-        <Button variant="ghost" size="icon" onClick={handlePrevDay}>
+        <Button variant="ghost" size="icon" onClick={onPrevDay}>
           <ChevronLeft className="h-5 w-5 text-muted-foreground" />
         </Button>
 
-        <div className="flex flex-col items-center cursor-pointer" onClick={handleToday}>
+        <div className="flex flex-col items-center cursor-pointer" onClick={onToday}>
           <span className="text-sm font-semibold text-foreground flex items-center gap-2">
             <CalendarIcon className="h-4 w-4 text-primary" />
             {formattedDate}
@@ -74,7 +81,7 @@ export function CalendarView({ appointments, onNewBooking, isLoading }: Calendar
           )}
         </div>
 
-        <Button variant="ghost" size="icon" onClick={handleNextDay}>
+        <Button variant="ghost" size="icon" onClick={onNextDay}>
           <ChevronRight className="h-5 w-5 text-muted-foreground" />
         </Button>
       </div>
@@ -88,8 +95,8 @@ export function CalendarView({ appointments, onNewBooking, isLoading }: Calendar
               variant="ghost"
               size="sm"
               className={`h-8 px-4 rounded-md transition-all ${viewMode === mode
-                  ? "bg-card shadow-sm text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                ? "bg-card shadow-sm text-foreground"
+                : "text-muted-foreground hover:text-foreground"
                 }`}
               onClick={() => setViewMode(mode)}
               disabled={mode === "Week"} // Week view not implemented yet
@@ -116,8 +123,8 @@ export function CalendarView({ appointments, onNewBooking, isLoading }: Calendar
             variant={activeFilter === filter ? "default" : "outline"}
             size="sm"
             className={`rounded-full shrink-0 transition-all ${activeFilter === filter
-                ? "bg-primary text-primary-foreground shadow-md"
-                : "bg-card text-foreground border-border hover:bg-secondary"
+              ? "bg-primary text-primary-foreground shadow-md"
+              : "bg-card text-foreground border-border hover:bg-secondary"
               }`}
             onClick={() => setActiveFilter(filter)}
           >

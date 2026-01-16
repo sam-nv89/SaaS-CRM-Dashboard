@@ -1,7 +1,7 @@
 # Roadmap: SaaS-CRM-Dashboard (BeautyFlow)
 
 > Создано: 2026-01-16
-> Последнее обновление: 2026-01-16
+> Последнее обновление: 2026-01-16 22:45
 
 ---
 
@@ -29,20 +29,17 @@
 
 ### Приоритет 1: Критические баги
 
-- [ ] **Исправить маппинг данных Appointments**
-  - Файл: `app/page.tsx` (строки 56-67)
-  - Проблема: `clientName` берётся из `master_name`, `service` из `duration`
-  - Решение: Добавить JOIN-запрос в `lib/db.ts` или загрузить справочники клиентов/услуг
+- [x] **Исправить маппинг данных Appointments** ✅
+  - Файл: `app/page.tsx`, `lib/db.ts`, `types/database.ts`
+  - Решение: Добавлен `getAppointmentsWithDetails()` с JOIN-запросом, `clientName` и `service` теперь берутся из связанных таблиц
 
-- [ ] **Синхронизировать состояние даты**
+- [x] **Синхронизировать состояние даты** ✅
   - Файлы: `app/page.tsx`, `mobile-header.tsx`, `calendar-view.tsx`
-  - Проблема: Каждый компонент имеет свой `currentDate`, они не связаны
-  - Решение: Поднять `currentDate` в `page.tsx`, передавать через пропсы
+  - Решение: `currentDate` поднят в `page.tsx`, передаётся через пропсы
 
-- [ ] **Оживить навигацию по датам в Header**
-  - Файл: `mobile-header.tsx` (строки 48-55)
-  - Проблема: Кнопки `<ChevronLeft>` и `<ChevronRight>` не имеют обработчиков
-  - Решение: Передать `onPrevDay` / `onNextDay` из `page.tsx`
+- [x] **Оживить навигацию по датам в Header** ✅
+  - Файл: `mobile-header.tsx`
+  - Решение: Добавлены `onPrevDay` / `onNextDay` обработчики
 
 ### Приоритет 2: Логические ошибки
 

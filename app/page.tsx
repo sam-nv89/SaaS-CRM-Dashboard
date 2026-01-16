@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { addDays, subDays } from "date-fns"
 import { MobileHeader } from "@/components/mobile-header"
 import { BottomNav } from "@/components/bottom-nav"
 import { DashboardView } from "@/components/views/dashboard-view"
@@ -10,8 +11,8 @@ import { ServicesView } from "@/components/views/services-view"
 import { SettingsView } from "@/components/views/settings-view"
 import { NewBookingDialog } from "@/components/dialogs/new-booking-dialog"
 import { Toaster } from "@/components/ui/sonner"
-import { getAppointments, createAppointment } from "@/lib/db"
-import type { Appointment as DbAppointment, AppointmentInsert } from "@/types/database"
+import { getAppointmentsWithDetails, createAppointment } from "@/lib/db"
+import type { AppointmentInsert, AppointmentWithDetails } from "@/types/database"
 import { toast } from "sonner"
 
 export type TabId = "dashboard" | "calendar" | "clients" | "services" | "settings"
@@ -36,6 +37,12 @@ export default function BeautyFlowApp() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [globalSearch, setGlobalSearch] = useState("")
+  const [currentDate, setCurrentDate] = useState(new Date())
+
+  // Date navigation handlers
+  const handlePrevDay = () => setCurrentDate((prev) => subDays(prev, 1))
+  const handleNextDay = () => setCurrentDate((prev) => addDays(prev, 1))
+  const handleToday = () => setCurrentDate(new Date())
 
   // Reset search when tab changes
   useEffect(() => {
@@ -50,16 +57,16 @@ export default function BeautyFlowApp() {
   const loadAppointments = async () => {
     try {
       setIsLoading(true)
-      const dbAppointments = await getAppointments()
+      const dbAppointments = await getAppointmentsWithDetails()
 
       // Transform DB appointments to UI format
-      const uiAppointments: Appointment[] = dbAppointments.map((apt) => ({
+      const uiAppointments: Appointment[] = dbAppointments.map((apt: AppointmentWithDetails) => ({
         id: apt.id,
         date: apt.date,
         time: apt.time,
         endTime: apt.end_time,
-        clientName: apt.master_name, // TODO: fetch client name from client_id
-        service: apt.duration, // TODO: fetch service name from service_id
+        clientName: apt.client?.name ?? 'Unknown Client',
+        service: apt.service?.name ?? 'Unknown Service',
         duration: apt.duration,
         status: apt.status,
         master: apt.master_name,
@@ -105,7 +112,17 @@ export default function BeautyFlowApp() {
       case "dashboard":
         return <DashboardView onViewCalendar={() => setActiveTab("calendar")} />
       case "calendar":
-        return <CalendarView appointments={appointments} onNewBooking={() => setBookingDialogOpen(true)} isLoading={isLoading} />
+        return (
+          <CalendarView
+            appointments={appointments}
+            onNewBooking={() => setBookingDialogOpen(true)}
+            isLoading={isLoading}
+            currentDate={currentDate}
+            onPrevDay={handlePrevDay}
+            onNextDay={handleNextDay}
+            onToday={handleToday}
+          />
+        )
       case "clients":
         return <ClientsView searchQuery={globalSearch} />
       case "services":
@@ -124,6 +141,10 @@ export default function BeautyFlowApp() {
         onBookClick={() => setBookingDialogOpen(true)}
         onSearch={setGlobalSearch}
         searchValue={globalSearch}
+        currentDate={currentDate}
+        onPrevDay={handlePrevDay}
+        onNextDay={handleNextDay}
+        onToday={handleToday}
       />
       <main className="px-4 py-4">{renderView()}</main>
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />

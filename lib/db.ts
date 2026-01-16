@@ -9,6 +9,7 @@ import type {
     Appointment,
     AppointmentInsert,
     AppointmentUpdate,
+    AppointmentWithDetails,
     BusinessSettings
 } from '@/types/database'
 
@@ -115,6 +116,34 @@ export async function deleteService(id: string): Promise<void> {
 
 // ============ APPOINTMENTS ============
 
+/**
+ * Получить записи с данными клиента и услуги (JOIN).
+ * Используется для отображения в календаре.
+ */
+export async function getAppointmentsWithDetails(date?: string): Promise<AppointmentWithDetails[]> {
+    let query = supabase
+        .from('appointments')
+        .select(`
+            *,
+            client:clients(name),
+            service:services(name)
+        `)
+        .order('date', { ascending: true })
+        .order('time', { ascending: true })
+
+    if (date) {
+        query = query.eq('date', date)
+    }
+
+    const { data, error } = await query
+
+    if (error) throw error
+    return (data as AppointmentWithDetails[]) || []
+}
+
+/**
+ * Получить записи без JOIN (для внутреннего использования).
+ */
 export async function getAppointments(date?: string): Promise<Appointment[]> {
     let query = supabase
         .from('appointments')

@@ -11,6 +11,10 @@ interface MobileHeaderProps {
   onBookClick: () => void
   onSearch?: (query: string) => void
   searchValue?: string
+  currentDate?: Date
+  onPrevDay?: () => void
+  onNextDay?: () => void
+  onToday?: () => void
 }
 
 const tabTitles: Record<TabId, string> = {
@@ -21,9 +25,16 @@ const tabTitles: Record<TabId, string> = {
   settings: "Settings",
 }
 
-export function MobileHeader({ activeTab, onBookClick, onSearch, searchValue }: MobileHeaderProps) {
+export function MobileHeader({
+  activeTab,
+  onBookClick,
+  onSearch,
+  searchValue,
+  currentDate = new Date(),
+  onPrevDay,
+  onNextDay,
+}: MobileHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false)
-  const [currentDate] = useState(new Date())
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-US", {
@@ -45,11 +56,11 @@ export function MobileHeader({ activeTab, onBookClick, onSearch, searchValue }: 
               <span className="font-semibold text-foreground">{tabTitles[activeTab]}</span>
               {activeTab === "calendar" && (
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Button variant="ghost" size="icon" className="h-5 w-5 p-0 hover:bg-secondary">
+                  <Button variant="ghost" size="icon" className="h-5 w-5 p-0 hover:bg-secondary" onClick={onPrevDay}>
                     <ChevronLeft className="h-3 w-3" />
                   </Button>
                   <span>{formatDate(currentDate)}</span>
-                  <Button variant="ghost" size="icon" className="h-5 w-5 p-0 hover:bg-secondary">
+                  <Button variant="ghost" size="icon" className="h-5 w-5 p-0 hover:bg-secondary" onClick={onNextDay}>
                     <ChevronRight className="h-3 w-3" />
                   </Button>
                 </div>

@@ -37,6 +37,15 @@ export interface Appointment {
     created_at: string
 }
 
+/**
+ * Appointment с данными связанных таблиц (client, service).
+ * Используется для отображения в UI с реальными именами.
+ */
+export interface AppointmentWithDetails extends Appointment {
+    client: { name: string } | null
+    service: { name: string } | null
+}
+
 export interface BusinessSettings {
     id: string
     salon_name: string

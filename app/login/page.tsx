@@ -58,6 +58,9 @@ export default async function LoginPage(props: {
                         )}
                     </CardFooter>
                 </form>
+                <div className="pb-4 text-center">
+                    <p className="text-xs text-muted-foreground">App Version 1.1 (Debug)</p>
+                </div>
             </Card>
         </div>
     )

@@ -81,4 +81,18 @@
 **Коммиты:**
 - `0e24436` — feat: integrate Supabase for clients and services
 
+7. **Интеграция Appointments:**
+   - `page.tsx` — загрузка записей из Supabase.
+   - `calendar-view.tsx` — добавлен loading state.
+   - `new-booking-dialog.tsx` — клиенты/услуги из БД, создание записей в Supabase.
+
+**Коммиты:**
+- `d84169f` — feat: integrate Supabase for appointments with booking dialog
+
+8. **Интеграция Settings:**
+   - `settings-view.tsx` — загрузка/сохранение настроек в Supabase.
+   - Протестировано: изменение названия салона сохраняется в БД.
+
+**Статус:** ✅ Приоритет 1 (Supabase CRUD) полностью завершён!
+
 ---

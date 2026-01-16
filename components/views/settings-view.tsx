@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Building2, Clock, Bell, Upload, Loader2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -9,37 +9,92 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
+import { getSettings, updateSettings } from "@/lib/db"
+import type { BusinessHour, NotificationSettings } from "@/types/database"
 
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
-const initialHours = daysOfWeek.map((day) => ({
+const defaultHours: BusinessHour[] = daysOfWeek.map((day) => ({
   day,
   open: day === "Sunday" ? "" : "09:00",
   close: day === "Sunday" ? "" : "21:00",
-  isOpen: day !== "Sunday",
+  is_open: day !== "Sunday",
 }))
 
+const defaultNotifications: NotificationSettings = {
+  booking_confirmation: true,
+  reminder_before: true,
+  cancel_notification: true,
+  marketing_emails: false,
+}
+
 export function SettingsView() {
-  const [businessHours, setBusinessHours] = useState(initialHours)
-  const [notifications, setNotifications] = useState({
-    bookingConfirmation: true,
-    reminderBefore: true,
-    cancelNotification: true,
-    marketingEmails: false,
-  })
+  const [salonName, setSalonName] = useState("BeautyFlow Studio")
+  const [address, setAddress] = useState("123 Beauty Street, New York, NY")
+  const [phone, setPhone] = useState("+1 234-567-8900")
+  const [businessHours, setBusinessHours] = useState<BusinessHour[]>(defaultHours)
+  const [notifications, setNotifications] = useState<NotificationSettings>(defaultNotifications)
   const [isSaving, setIsSaving] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Load settings from Supabase on mount
+  useEffect(() => {
+    loadSettings()
+  }, [])
+
+  const loadSettings = async () => {
+    try {
+      setIsLoading(true)
+      const settings = await getSettings()
+      if (settings) {
+        setSalonName(settings.salon_name || "BeautyFlow Studio")
+        setAddress(settings.address || "")
+        setPhone(settings.phone || "")
+        if (settings.business_hours && Array.isArray(settings.business_hours)) {
+          setBusinessHours(settings.business_hours as BusinessHour[])
+        }
+        if (settings.notifications) {
+          setNotifications(settings.notifications as NotificationSettings)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const toggleDayOpen = (dayIndex: number) => {
-    setBusinessHours((prev) => prev.map((h, i) => (i === dayIndex ? { ...h, isOpen: !h.isOpen } : h)))
+    setBusinessHours((prev) => prev.map((h, i) => (i === dayIndex ? { ...h, is_open: !h.is_open } : h)))
   }
 
   const handleSave = async () => {
     setIsSaving(true)
-    await new Promise((resolve) => setTimeout(resolve, 800))
-    setIsSaving(false)
-    toast.success("Settings saved!", {
-      description: "Your changes have been saved successfully.",
-    })
+    try {
+      await updateSettings({
+        salon_name: salonName,
+        address,
+        phone,
+        business_hours: businessHours,
+        notifications,
+      })
+      toast.success("Settings saved!", {
+        description: "Your changes have been saved successfully.",
+      })
+    } catch (error) {
+      console.error('Error saving settings:', error)
+      toast.error("Failed to save settings")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (
@@ -74,19 +129,34 @@ export function SettingsView() {
                 <Label htmlFor="salonName" className="text-sm">
                   Salon Name
                 </Label>
-                <Input id="salonName" defaultValue="BeautyFlow Studio" className="h-11" />
+                <Input
+                  id="salonName"
+                  value={salonName}
+                  onChange={(e) => setSalonName(e.target.value)}
+                  className="h-11"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="address" className="text-sm">
                   Address
                 </Label>
-                <Input id="address" defaultValue="123 Beauty Street, New York, NY" className="h-11" />
+                <Input
+                  id="address"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="h-11"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone" className="text-sm">
                   Phone
                 </Label>
-                <Input id="phone" defaultValue="+1 234-567-8900" className="h-11" />
+                <Input
+                  id="phone"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="h-11"
+                />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm">Logo</Label>
@@ -136,17 +206,17 @@ export function SettingsView() {
                 >
                   <div className="flex items-center gap-3">
                     <Switch
-                      checked={schedule.isOpen}
+                      checked={schedule.is_open}
                       onCheckedChange={() => toggleDayOpen(idx)}
                       className="data-[state=checked]:bg-confirmed"
                     />
                     <span
-                      className={`text-sm ${schedule.isOpen ? "text-foreground font-medium" : "text-muted-foreground"}`}
+                      className={`text-sm ${schedule.is_open ? "text-foreground font-medium" : "text-muted-foreground"}`}
                     >
                       {schedule.day.slice(0, 3)}
                     </span>
                   </div>
-                  {schedule.isOpen ? (
+                  {schedule.is_open ? (
                     <div className="flex items-center gap-2">
                       <Input
                         type="time"
@@ -210,8 +280,8 @@ export function SettingsView() {
                   <p className="text-xs text-muted-foreground">Send confirmation when booked</p>
                 </div>
                 <Switch
-                  checked={notifications.bookingConfirmation}
-                  onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, bookingConfirmation: checked }))}
+                  checked={notifications.booking_confirmation}
+                  onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, booking_confirmation: checked }))}
                   className="data-[state=checked]:bg-confirmed"
                 />
               </div>
@@ -221,8 +291,8 @@ export function SettingsView() {
                   <p className="text-xs text-muted-foreground">Send reminder 24h before</p>
                 </div>
                 <Switch
-                  checked={notifications.reminderBefore}
-                  onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, reminderBefore: checked }))}
+                  checked={notifications.reminder_before}
+                  onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, reminder_before: checked }))}
                   className="data-[state=checked]:bg-confirmed"
                 />
               </div>
@@ -232,8 +302,8 @@ export function SettingsView() {
                   <p className="text-xs text-muted-foreground">Notify when appointments cancel</p>
                 </div>
                 <Switch
-                  checked={notifications.cancelNotification}
-                  onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, cancelNotification: checked }))}
+                  checked={notifications.cancel_notification}
+                  onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, cancel_notification: checked }))}
                   className="data-[state=checked]:bg-confirmed"
                 />
               </div>
@@ -243,8 +313,8 @@ export function SettingsView() {
                   <p className="text-xs text-muted-foreground">Receive tips and promotions</p>
                 </div>
                 <Switch
-                  checked={notifications.marketingEmails}
-                  onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, marketingEmails: checked }))}
+                  checked={notifications.marketing_emails}
+                  onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, marketing_emails: checked }))}
                   className="data-[state=checked]:bg-confirmed"
                 />
               </div>

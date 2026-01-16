@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Building2, Clock, Bell, Upload, Loader2, X, Image as ImageIcon } from "lucide-react"
+import { Building2, Clock, Bell, Upload, Loader2, X, Image as ImageIcon, Database } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -38,6 +38,7 @@ export function SettingsView() {
   const logoInputRef = useRef<HTMLInputElement>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isSeeding, setIsSeeding] = useState(false)
 
   // Load settings from Supabase on mount
   useEffect(() => {
@@ -91,6 +92,27 @@ export function SettingsView() {
     }
   }
 
+  const handleSeedData = async () => {
+    setIsSeeding(true)
+    try {
+      const res = await fetch('/api/seed-db')
+      const data = await res.json()
+      if (res.ok) {
+        toast.success("Success", {
+          description: `Generated ${data.count} test appointments`
+        })
+      } else {
+        toast.error("Error generating data", {
+          description: data.error
+        })
+      }
+    } catch (e) {
+      toast.error("Network error calling seed API")
+    } finally {
+      setIsSeeding(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -102,7 +124,7 @@ export function SettingsView() {
   return (
     <div className="space-y-4">
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="w-full grid grid-cols-3 bg-secondary">
+        <TabsList className="w-full grid grid-cols-4 bg-secondary">
           <TabsTrigger value="general" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm">
             General
           </TabsTrigger>
@@ -114,6 +136,12 @@ export function SettingsView() {
             className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm"
           >
             Alerts
+          </TabsTrigger>
+          <TabsTrigger
+            value="system"
+            className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm"
+          >
+            System
           </TabsTrigger>
         </TabsList>
 
@@ -339,7 +367,7 @@ export function SettingsView() {
                 </div>
                 <Switch
                   checked={notifications.booking_confirmation}
-                  onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, booking_confirmation: checked }))}
+                  onCheckedChange={(checked: boolean) => setNotifications((prev) => ({ ...prev, booking_confirmation: checked }))}
                   className="data-[state=checked]:bg-confirmed"
                 />
               </div>
@@ -350,7 +378,7 @@ export function SettingsView() {
                 </div>
                 <Switch
                   checked={notifications.reminder_before}
-                  onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, reminder_before: checked }))}
+                  onCheckedChange={(checked: boolean) => setNotifications((prev) => ({ ...prev, reminder_before: checked }))}
                   className="data-[state=checked]:bg-confirmed"
                 />
               </div>
@@ -361,7 +389,7 @@ export function SettingsView() {
                 </div>
                 <Switch
                   checked={notifications.cancel_notification}
-                  onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, cancel_notification: checked }))}
+                  onCheckedChange={(checked: boolean) => setNotifications((prev) => ({ ...prev, cancel_notification: checked }))}
                   className="data-[state=checked]:bg-confirmed"
                 />
               </div>
@@ -372,7 +400,7 @@ export function SettingsView() {
                 </div>
                 <Switch
                   checked={notifications.marketing_emails}
-                  onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, marketing_emails: checked }))}
+                  onCheckedChange={(checked: boolean) => setNotifications((prev) => ({ ...prev, marketing_emails: checked }))}
                   className="data-[state=checked]:bg-confirmed"
                 />
               </div>
@@ -393,6 +421,40 @@ export function SettingsView() {
               "Save Changes"
             )}
           </Button>
+        </TabsContent>
+
+        {/* System Tab */}
+        <TabsContent value="system" className="mt-4 space-y-4">
+          <Card className="border-border bg-card shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Database className="h-4 w-4 text-primary" />
+                Database Management
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-secondary/30 p-4 rounded-lg border border-border">
+                <div className="flex flex-col gap-2">
+                  <div>
+                    <p className="text-sm text-foreground font-semibold">Test Appointment Data</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Generates 50 random confirmed/cancelled appointments for the current week.
+                      Uses existing Services and Clients.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={handleSeedData}
+                    disabled={isSeeding}
+                    className="w-full justify-center mt-2 bg-background hover:bg-secondary border-primary/20 hover:border-primary/50 text-foreground transition-all"
+                  >
+                    {isSeeding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Database className="h-4 w-4 mr-2 text-primary" />}
+                    Generate 50 Test Records
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

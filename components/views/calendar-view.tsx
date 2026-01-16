@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronRight, Plus } from "lucide-react"
+import { ChevronRight, Plus, Loader2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,7 @@ type AppointmentStatus = "confirmed" | "pending" | "canceled"
 interface CalendarViewProps {
   appointments: Appointment[]
   onNewBooking: () => void
+  isLoading?: boolean
 }
 
 const statusStyles: Record<AppointmentStatus, string> = {
@@ -24,7 +25,7 @@ const statusStyles: Record<AppointmentStatus, string> = {
 const filters = ["All", "Confirmed", "Pending", "Canceled"] as const
 const viewModes = ["Day", "Week"] as const
 
-export function CalendarView({ appointments, onNewBooking }: CalendarViewProps) {
+export function CalendarView({ appointments, onNewBooking, isLoading }: CalendarViewProps) {
   const [activeFilter, setActiveFilter] = useState<string>("All")
   const [viewMode, setViewMode] = useState<string>("Day")
 
@@ -67,11 +68,10 @@ export function CalendarView({ appointments, onNewBooking }: CalendarViewProps) 
             key={filter}
             variant={activeFilter === filter ? "default" : "outline"}
             size="sm"
-            className={`rounded-full shrink-0 transition-all ${
-              activeFilter === filter
-                ? "bg-primary text-primary-foreground shadow-md"
-                : "bg-card text-foreground border-border hover:bg-secondary"
-            }`}
+            className={`rounded-full shrink-0 transition-all ${activeFilter === filter
+              ? "bg-primary text-primary-foreground shadow-md"
+              : "bg-card text-foreground border-border hover:bg-secondary"
+              }`}
             onClick={() => setActiveFilter(filter)}
           >
             {filter}
@@ -90,9 +90,8 @@ export function CalendarView({ appointments, onNewBooking }: CalendarViewProps) 
         {filteredAppointments.map((appointment) => (
           <Card
             key={appointment.id}
-            className={`border-border bg-card overflow-hidden shadow-sm card-hover ${
-              appointment.status === "canceled" ? "opacity-60" : ""
-            }`}
+            className={`border-border bg-card overflow-hidden shadow-sm card-hover ${appointment.status === "canceled" ? "opacity-60" : ""
+              }`}
           >
             <CardContent className="p-0">
               <div className="flex">
@@ -144,7 +143,13 @@ export function CalendarView({ appointments, onNewBooking }: CalendarViewProps) 
         ))}
       </div>
 
-      {filteredAppointments.length === 0 && (
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      )}
+
+      {!isLoading && filteredAppointments.length === 0 && (
         <div className="text-center py-12">
           <p className="text-muted-foreground">No appointments found</p>
         </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { MobileHeader } from "@/components/mobile-header"
 import { BottomNav } from "@/components/bottom-nav"
 import { DashboardView } from "@/components/views/dashboard-view"
@@ -10,9 +10,13 @@ import { ServicesView } from "@/components/views/services-view"
 import { SettingsView } from "@/components/views/settings-view"
 import { NewBookingDialog } from "@/components/dialogs/new-booking-dialog"
 import { Toaster } from "@/components/ui/sonner"
+import { getAppointments, createAppointment } from "@/lib/db"
+import type { Appointment as DbAppointment, AppointmentInsert } from "@/types/database"
+import { toast } from "sonner"
 
 export type TabId = "dashboard" | "calendar" | "clients" | "services" | "settings"
 
+// UI-friendly appointment type (for calendar display)
 export interface Appointment {
   id: string
   time: string
@@ -28,88 +32,64 @@ export interface Appointment {
 export default function BeautyFlowApp() {
   const [activeTab, setActiveTab] = useState<TabId>("dashboard")
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false)
-  const [appointments, setAppointments] = useState<Appointment[]>([
-    {
-      id: "1",
-      time: "09:00",
-      endTime: "10:00",
-      clientName: "Sarah Johnson",
-      service: "Hair Coloring",
-      duration: "1h",
-      status: "confirmed",
-      master: "Emma",
-      masterColor: "bg-chart-1",
-    },
-    {
-      id: "2",
-      time: "10:30",
-      endTime: "11:30",
-      clientName: "Michael Chen",
-      service: "Haircut & Styling",
-      duration: "1h",
-      status: "confirmed",
-      master: "Sophia",
-      masterColor: "bg-chart-2",
-    },
-    {
-      id: "3",
-      time: "11:00",
-      endTime: "12:00",
-      clientName: "Emily Davis",
-      service: "Manicure & Pedicure",
-      duration: "1h",
-      status: "pending",
-      master: "Olivia",
-      masterColor: "bg-chart-3",
-    },
-    {
-      id: "4",
-      time: "12:30",
-      endTime: "13:00",
-      clientName: "James Wilson",
-      service: "Beard Trim",
-      duration: "30m",
-      status: "confirmed",
-      master: "Emma",
-      masterColor: "bg-chart-1",
-    },
-    {
-      id: "5",
-      time: "14:00",
-      endTime: "15:30",
-      clientName: "Lisa Anderson",
-      service: "Full Hair Treatment",
-      duration: "1.5h",
-      status: "pending",
-      master: "Sophia",
-      masterColor: "bg-chart-2",
-    },
-    {
-      id: "6",
-      time: "15:00",
-      endTime: "16:00",
-      clientName: "David Brown",
-      service: "Haircut",
-      duration: "45m",
-      status: "canceled",
-      master: "Olivia",
-      masterColor: "bg-chart-3",
-    },
-    {
-      id: "7",
-      time: "16:30",
-      endTime: "18:30",
-      clientName: "Jennifer Lee",
-      service: "Balayage",
-      duration: "2h",
-      status: "confirmed",
-      master: "Emma",
-      masterColor: "bg-chart-1",
-    },
-  ])
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  const addAppointment = (apt: Appointment) => {
+  // Load appointments from Supabase on mount
+  useEffect(() => {
+    loadAppointments()
+  }, [])
+
+  const loadAppointments = async () => {
+    try {
+      setIsLoading(true)
+      const dbAppointments = await getAppointments()
+
+      // Transform DB appointments to UI format
+      const uiAppointments: Appointment[] = dbAppointments.map((apt) => ({
+        id: apt.id,
+        time: apt.time,
+        endTime: apt.end_time,
+        clientName: apt.master_name, // TODO: fetch client name from client_id
+        service: apt.duration, // TODO: fetch service name from service_id
+        duration: apt.duration,
+        status: apt.status,
+        master: apt.master_name,
+        masterColor: apt.master_color,
+      }))
+
+      setAppointments(uiAppointments)
+    } catch (error) {
+      console.error('Error loading appointments:', error)
+      // Fall back to empty array if DB fails
+      setAppointments([])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const addAppointment = async (apt: Appointment) => {
+    // Add to UI immediately (optimistic update)
     setAppointments((prev) => [...prev, apt].sort((a, b) => a.time.localeCompare(b.time)))
+
+    // Save to Supabase
+    try {
+      const dbAppointment: AppointmentInsert = {
+        client_id: apt.id, // This should be actual client_id from selection
+        service_id: apt.id, // This should be actual service_id from selection
+        master_name: apt.master,
+        master_color: apt.masterColor,
+        date: new Date().toISOString().split('T')[0], // Today
+        time: apt.time,
+        end_time: apt.endTime,
+        duration: apt.duration,
+        status: apt.status,
+      }
+      await createAppointment(dbAppointment)
+    } catch (error) {
+      console.error('Error saving appointment:', error)
+      toast.error('Failed to save appointment')
+    }
   }
 
   const renderView = () => {
@@ -117,7 +97,7 @@ export default function BeautyFlowApp() {
       case "dashboard":
         return <DashboardView onViewCalendar={() => setActiveTab("calendar")} />
       case "calendar":
-        return <CalendarView appointments={appointments} onNewBooking={() => setBookingDialogOpen(true)} />
+        return <CalendarView appointments={appointments} onNewBooking={() => setBookingDialogOpen(true)} isLoading={isLoading} />
       case "clients":
         return <ClientsView />
       case "services":

@@ -47,3 +47,38 @@
 - `7bc917a` — fix: allow sharp build scripts for pnpm
 
 ---
+
+### Сессия: Интеграция Supabase CRUD (продолжение)
+
+**Автор:** Antigravity Agent
+
+**Выполнено:**
+
+1. **Исправление терминала (финальное):**
+   - Проблема: PowerShell вызывал конфликты с ConPTY.
+   - Решение: `terminal.integrated.defaultProfile.windows: "Command Prompt"`.
+
+2. **Создание схемы базы данных:**
+   - `supabase/schema.sql` — таблицы `clients`, `services`, `appointments`, `settings`.
+   - Добавлены RLS политики и примеры данных.
+
+3. **TypeScript типы:**
+   - `types/database.ts` — интерфейсы для всех таблиц + Insert/Update типы.
+
+4. **Сервисный слой:**
+   - `lib/db.ts` — CRUD функции: `getClients`, `createClient`, `getServices`, `updateService` и др.
+
+5. **Обновление компонентов:**
+   - `clients-view.tsx` — загрузка/добавление клиентов из Supabase.
+   - `services-view.tsx` — загрузка/редактирование услуг из Supabase.
+   - `add-client-sheet.tsx` — обновлённый интерфейс.
+   - `edit-service-dialog.tsx` — обновлён для работы с типами БД.
+
+6. **Тестирование:**
+   - ✅ Services загружаются из Supabase (13 услуг).
+   - ✅ Clients — добавление работает, сохраняется в БД.
+
+**Коммиты:**
+- `0e24436` — feat: integrate Supabase for clients and services
+
+---

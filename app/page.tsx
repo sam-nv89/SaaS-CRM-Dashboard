@@ -153,6 +153,7 @@ export default function BeautyFlowApp() {
         open={bookingDialogOpen}
         onOpenChange={setBookingDialogOpen}
         onBookingCreated={addAppointment}
+        initialDate={currentDate}
       />
 
       <Toaster position="top-center" richColors />

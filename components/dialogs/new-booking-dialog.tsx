@@ -17,6 +17,8 @@ interface NewBookingDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onBookingCreated: (appointment: Appointment) => void
+  /** Начальная дата для создания записи (из календаря) */
+  initialDate?: Date
 }
 
 const masters = [
@@ -33,7 +35,11 @@ const timeSlots = [
 
 type Step = 1 | 2 | 3
 
-export function NewBookingDialog({ open, onOpenChange, onBookingCreated }: NewBookingDialogProps) {
+const formatDateToISO = (date: Date): string => {
+  return date.toISOString().split("T")[0]
+}
+
+export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initialDate }: NewBookingDialogProps) {
   const [step, setStep] = useState<Step>(1)
   const [clientSearch, setClientSearch] = useState("")
   const [clients, setClients] = useState<Client[]>([])
@@ -42,7 +48,7 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated }: NewBo
   const [selectedService, setSelectedService] = useState<Service | null>(null)
   const [selectedMaster, setSelectedMaster] = useState<(typeof masters)[0] | null>(null)
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0])
+  const [selectedDate, setSelectedDate] = useState<string>(formatDateToISO(initialDate ?? new Date()))
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingData, setIsLoadingData] = useState(true)
 
@@ -50,8 +56,12 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated }: NewBo
   useEffect(() => {
     if (open) {
       loadData()
+      // Обновляем дату при открытии диалога
+      if (initialDate) {
+        setSelectedDate(formatDateToISO(initialDate))
+      }
     }
-  }, [open])
+  }, [open, initialDate])
 
   const loadData = async () => {
     try {
@@ -89,12 +99,49 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated }: NewBo
     onOpenChange(open)
   }
 
+  /**
+   * Парсит строку duration и вычисляет время окончания.
+   * Поддерживает форматы: "45 min", "1h", "1.5h", "2h", "2h 30min"
+   */
+  const calculateEndTime = (startTime: string, duration: string): string => {
+    const [hours, minutes] = startTime.split(':').map(Number)
+
+    let durationMinutes = 0
+
+    // Парсим различные форматы duration
+    const hourMatch = duration.match(/(\d+(?:\.\d+)?)\s*h/)
+    const minMatch = duration.match(/(\d+)\s*min/)
+
+    if (hourMatch) {
+      durationMinutes += parseFloat(hourMatch[1]) * 60
+    }
+    if (minMatch) {
+      durationMinutes += parseInt(minMatch[1], 10)
+    }
+
+    // Если ничего не распарсилось, пробуем как чистое число минут
+    if (durationMinutes === 0) {
+      const pureNumber = parseInt(duration, 10)
+      if (!isNaN(pureNumber)) {
+        durationMinutes = pureNumber
+      }
+    }
+
+    const totalMinutes = hours * 60 + minutes + durationMinutes
+    const endHours = Math.floor(totalMinutes / 60) % 24
+    const endMinutes = totalMinutes % 60
+
+    return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`
+  }
+
   const handleConfirm = async () => {
     if (!selectedClient || !selectedService || !selectedMaster || !selectedTime) return
 
     setIsLoading(true)
 
     try {
+      const endTime = calculateEndTime(selectedTime, selectedService.duration)
+
       // Create appointment in Supabase
       const dbAppointment: AppointmentInsert = {
         client_id: selectedClient.id,
@@ -103,7 +150,7 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated }: NewBo
         master_color: selectedMaster.color,
         date: selectedDate,
         time: selectedTime,
-        end_time: selectedTime, // TODO: calculate based on duration
+        end_time: endTime,
         duration: selectedService.duration,
         status: "confirmed",
       }
@@ -115,7 +162,7 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated }: NewBo
         id: created.id,
         date: selectedDate,
         time: selectedTime,
-        endTime: selectedTime,
+        endTime: endTime,
         clientName: selectedClient.name,
         service: selectedService.name,
         duration: selectedService.duration,

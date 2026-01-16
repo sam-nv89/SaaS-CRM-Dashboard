@@ -158,3 +158,31 @@ READY FOR REVIEW.
 **Статус сборки:** ✅ Build successful
 
 **Коммит:** feat: fix appointments data mapping and sync date state
+
+---
+
+**Выполнено (Приоритет 2):**
+
+4. **Рассчёт `end_time` для записей:**
+   - Добавлена функция `calculateEndTime()` в `new-booking-dialog.tsx`.
+   - Поддерживает форматы: "45 min", "1h", "1.5h", "2h 30min", чистые числа.
+   - `end_time` теперь корректно вычисляется как `time + duration`.
+
+5. **Привязка создания записи к выбранной дате:**
+   - Добавлен проп `initialDate` в `NewBookingDialogProps`.
+   - Диалог теперь получает дату из календаря через `currentDate` из `page.tsx`.
+   - При открытии диалога дата обновляется через `useEffect`.
+
+**Файлы изменены:**
+- `components/dialogs/new-booking-dialog.tsx` — добавлены `calculateEndTime()`, `initialDate` prop
+- `app/page.tsx` — передаёт `currentDate` в диалог
+
+**Статус сборки:** ✅ Build successful
+
+**Коммит:** feat: calculate end_time and bind booking to selected date
+
+---
+
+## Фаза 3 ЗАВЕРШЕНА ✅
+
+Все критические проблемы исправлены. Следующий этап: Фаза 4 — оживление UI заглушек.

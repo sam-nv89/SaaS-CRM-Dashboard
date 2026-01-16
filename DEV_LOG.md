@@ -186,3 +186,67 @@ READY FOR REVIEW.
 ## Фаза 3 ЗАВЕРШЕНА ✅
 
 Все критические проблемы исправлены. Следующий этап: Фаза 4 — оживление UI заглушек.
+
+---
+
+### Сессия: Фаза 4 — Оживление UI заглушек
+
+**Дата:** 2026-01-16
+**Автор:** Antigravity Agent
+
+**Выполнено:**
+
+1. **Кнопка "Add Service":**
+   - Создан `components/dialogs/add-service-dialog.tsx`
+   - Форма: название, категория (выбор + кастомная), цена, длительность
+   - Интеграция с `createService()` из Supabase
+   - Автоматическое добавление в список и раскрытие категории
+
+2. **Пункт меню "View Profile":**
+   - Создан `components/dialogs/client-profile-dialog.tsx`
+   - Отображает: контактные данные, заметки, статус клиента
+   - История последних 10 визитов с JOIN-запросом к services
+   - Цветовая индикация статусов записей
+
+3. **Кнопка Bell (уведомления):**
+   - Добавлен Popover с ScrollArea в `mobile-header.tsx`
+   - 3 примера уведомлений: новая запись, напоминание, отмена
+   - Кнопка "View all notifications"
+   - Анимированный индикатор непрочитанных
+
+4. **Загрузка логотипа:**
+   - Улучшен UI в `settings-view.tsx`
+   - Предпросмотр с FileReader и base64
+   - Валидация размера (макс. 5MB)
+   - Кнопка удаления с hover-эффектом
+
+5. **Режим "Week":**
+   - Полная реализация в `calendar-view.tsx`
+   - 7-дневная сетка с date-fns (startOfWeek, eachDayOfInterval)
+   - Мини-карточки записей (до 3 на день + "+N more")
+   - Выделение текущего дня и выбранной даты
+   - Кликабельные ячейки для навигации
+
+**Файлы созданы:**
+- `components/dialogs/add-service-dialog.tsx`
+- `components/dialogs/client-profile-dialog.tsx`
+
+**Файлы изменены:**
+- `components/views/services-view.tsx` — интеграция AddServiceDialog
+- `components/views/clients-view.tsx` — интеграция ClientProfileDialog
+- `components/mobile-header.tsx` — Popover notifications
+- `components/views/settings-view.tsx` — улучшенная загрузка логотипа
+- `components/views/calendar-view.tsx` — Week view mode
+
+**Статус сборки:** ✅ Build successful
+
+**Коммиты:**
+- `b122b7d` — feat: implement Add Service button and View Profile dialog
+- `ec89568` — feat: implement notifications bell popover with sample notifications
+- `2789c2e` — feat: complete Phase 4 - logo upload, week view, all UI stubs implemented
+
+---
+
+## Фаза 4 ЗАВЕРШЕНА ✅
+
+Все UI заглушки оживлены. Следующий этап: Фаза 5 — Dashboard с реальными данными.

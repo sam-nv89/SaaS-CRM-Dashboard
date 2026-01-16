@@ -271,8 +271,8 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
                 key={period}
                 onClick={() => setTimePeriod(period)}
                 className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${timePeriod === period
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
                   }`}
               >
                 {period.charAt(0).toUpperCase() + period.slice(1)}
@@ -434,7 +434,9 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
         <Card className="col-span-1 lg:col-span-3">
           <CardHeader>
             <CardTitle>Sales by Category</CardTitle>
-            <CardDescription>Distribution across services</CardDescription>
+            <CardDescription>
+              Distribution across {serviceBreakdown.length} services
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[300px] w-full relative">
@@ -463,13 +465,6 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
                   />
                 </PieChart>
               </ResponsiveContainer>
-              {/* Reduced size and centered nicely to avoid overlaps */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none pb-8 text-center" style={{ zIndex: 0 }}>
-                <div>
-                  <span className="text-2xl font-bold block text-foreground">{serviceBreakdown.length}</span>
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-widest">Categories</span>
-                </div>
-              </div>
             </div>
           </CardContent>
         </Card>
@@ -532,13 +527,13 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
                 <div key={staff.name} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={`w-2.5 h-2.5 rounded-full ${staff.status === 'busy' ? 'bg-orange-500' :
-                        staff.status === 'free' ? 'bg-green-500' : 'bg-gray-300'
+                      staff.status === 'free' ? 'bg-green-500' : 'bg-gray-300'
                       }`} />
                     <span className="font-medium text-sm">{staff.name}</span>
                   </div>
                   <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${staff.status === 'busy' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
-                      staff.status === 'free' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                        'bg-muted text-muted-foreground'
+                    staff.status === 'free' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                      'bg-muted text-muted-foreground'
                     }`}>
                     {staff.status.charAt(0).toUpperCase() + staff.status.slice(1)}
                   </span>

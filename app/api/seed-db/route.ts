@@ -5,10 +5,13 @@ import { startOfWeek, addDays, format, parse, addMinutes } from 'date-fns'
 export async function GET() {
     try {
         // 1. Get reference data
-        const { data: services } = await supabase.from('services').select('*')
-        const { data: clients } = await supabase.from('clients').select('*')
+        const { data: services, error: servicesError } = await supabase.from('services').select('*')
+        const { data: clients, error: clientsError } = await supabase.from('clients').select('*')
 
-        // Masters hardcoded list (since we don't have a masters table yet)
+        if (servicesError) throw servicesError
+        if (clientsError) throw clientsError
+
+        // Masters hardcoded list
         const masterList = [
             { master_name: 'Sarah Johnson', master_color: '#F472B6' },
             { master_name: 'Michael Chen', master_color: '#60A5FA' },
@@ -17,7 +20,6 @@ export async function GET() {
         ]
 
         if (!services || !clients || services.length === 0 || clients.length === 0) {
-            // Create dummy if needed? No, let's report error
             return NextResponse.json({ error: 'No services or clients found. Create them first.' }, { status: 400 })
         }
 
@@ -42,7 +44,6 @@ export async function GET() {
             const master = masterList[Math.floor(Math.random() * masterList.length)]
 
             // Calculate end time
-            // Parse duration: "45 min", "1h", "1.5h"
             let durationMin = 60
             const dur = service.duration.toLowerCase()
             if (dur.includes('min') && !dur.includes('h')) {
@@ -51,16 +52,21 @@ export async function GET() {
             } else if (dur.includes('h')) {
                 if (dur.includes('.')) durationMin = parseFloat(dur) * 60
                 else durationMin = parseInt(dur) * 60
-                if (dur.includes('min')) {
-                    // complex case like "1h 30min", assume simplified for seed
-                    // Or re-use calculateEndTime logic but I don't import component functions here.
-                }
             }
 
-            // Simple end time calc
             const startTime = parse(timeStr, 'HH:mm', new Date())
             const endTimeDate = addMinutes(startTime, durationMin)
             const endTimeStr = format(endTimeDate, 'HH:mm')
+
+            // Fix status: use 'canceled' (single l) matching typings. 
+            // If DB accepts 'no_show', we can try it, but let's stick to known types first to fix the error.
+            // Actually, let's try to map 'no-show' to 'canceled' for now to be safe, 
+            // OR rely on the fact that if it fails, we will now see the error message.
+            // I will use 'canceled' strictly for now.
+            const statusRandom = Math.random()
+            let status = 'confirmed'
+            if (statusRandom > 0.9) status = 'canceled'
+            else if (statusRandom > 0.8) status = 'pending'
 
             newAppointments.push({
                 client_id: client.id,
@@ -71,18 +77,22 @@ export async function GET() {
                 time: timeStr,
                 end_time: endTimeStr,
                 duration: service.duration,
-                status: Math.random() > 0.85 ? (Math.random() > 0.5 ? 'cancelled' : 'no_show') : 'confirmed',
+                status: status,
                 notes: 'Seeded test data'
             })
         }
 
         const { error } = await supabase.from('appointments').insert(newAppointments)
 
-        if (error) throw error
+        if (error) {
+            console.error("Supabase Insert Error:", error)
+            // Return full error object
+            return NextResponse.json({ error: error.message || JSON.stringify(error), details: error }, { status: 500 })
+        }
 
         return NextResponse.json({ success: true, count: newAppointments.length, message: "Added 50 test appointments" })
-    } catch (error) {
+    } catch (error: any) {
         console.error("Seed error:", error)
-        return NextResponse.json({ error: String(error) }, { status: 500 })
+        return NextResponse.json({ error: error.message || String(error) }, { status: 500 })
     }
 }

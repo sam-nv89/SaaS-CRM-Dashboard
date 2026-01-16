@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { EditServiceDialog } from "@/components/dialogs/edit-service-dialog"
+import { AddServiceDialog } from "@/components/dialogs/add-service-dialog"
 import { getServices, updateService } from "@/lib/db"
 import type { Service } from "@/types/database"
 import { toast } from "sonner"
@@ -21,6 +22,7 @@ export function ServicesView() {
   const [categories, setCategories] = useState<ServiceCategory[]>([])
   const [openCategories, setOpenCategories] = useState<string[]>([])
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [editingService, setEditingService] = useState<Service | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -137,6 +139,7 @@ export function ServicesView() {
           size="sm"
           variant="outline"
           className="border-primary text-primary bg-transparent hover:bg-primary/5 transition-colors"
+          onClick={() => setAddDialogOpen(true)}
         >
           Add Service
         </Button>
@@ -218,6 +221,44 @@ export function ServicesView() {
         onOpenChange={setEditDialogOpen}
         service={editingService}
         onServiceUpdated={handleServiceUpdated}
+      />
+
+      <AddServiceDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        onServiceCreated={(service) => {
+          // Add to categories or create new category
+          setCategories((prev) => {
+            const categoryId = service.category.toLowerCase().replace(/\s+/g, '-')
+            const existingCategory = prev.find((c) => c.id === categoryId)
+
+            if (existingCategory) {
+              return prev.map((cat) =>
+                cat.id === categoryId
+                  ? { ...cat, services: [...cat.services, service] }
+                  : cat
+              )
+            } else {
+              return [
+                ...prev,
+                {
+                  id: categoryId,
+                  name: service.category,
+                  services: [service],
+                }
+              ]
+            }
+          })
+          // Open the new category if it was collapsed
+          setOpenCategories((prev) => {
+            const categoryId = service.category.toLowerCase().replace(/\s+/g, '-')
+            if (!prev.includes(categoryId)) {
+              return [...prev, categoryId]
+            }
+            return prev
+          })
+        }}
+        existingCategories={categories.map((c) => c.name)}
       />
     </div>
   )

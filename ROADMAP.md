@@ -57,7 +57,7 @@
 
 - [x] **Кнопка "Add Service"** ✅ — Создан `AddServiceDialog` с формой создания услуги
 - [x] **Пункт меню "View Profile"** ✅ — Создан `ClientProfileDialog` с историей визитов
-- [ ] **Кнопка "Bell" (уведомления)** — `mobile-header.tsx`
+- [x] **Кнопка "Bell" (уведомления)** ✅ — Добавлен Popover с примерами уведомлений
 - [ ] **Загрузка логотипа** — `settings-view.tsx`
 - [ ] **Режим "Week"** — `calendar-view.tsx`
 

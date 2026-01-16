@@ -59,25 +59,33 @@ interface DashboardViewProps {
 
 type TimePeriod = "today" | "week" | "month" | "year"
 
+// Helper for formatting numbers with thousands separator (space)
+const formatNumber = (value: number) => {
+  return new Intl.NumberFormat('ru-RU').format(value)
+}
+
 // --- Custom Tooltip Component ---
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label, unit = "" }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-popover border border-border shadow-md rounded-md p-3 text-sm z-50">
-        <p className="font-semibold text-foreground mb-1">{label}</p>
+      <div className="bg-popover border border-border shadow-md rounded-md p-3 text-sm z-[100] min-w-[120px]">
+        {/* Only show label if it's provided and not empty */}
+        {label && <p className="font-semibold text-foreground mb-1">{label}</p>}
         <div className="space-y-1">
           {payload.map((entry: any, index: number) => (
-            <div key={index} className="flex items-center gap-2">
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: entry.color }}
-              />
-              <span className="text-muted-foreground capitalize">
-                {entry.name}:
-              </span>
+            <div key={index} className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: entry.color || entry.fill }}
+                />
+                <span className="text-muted-foreground capitalize">
+                  {entry.name}:
+                </span>
+              </div>
               <span className="font-medium text-foreground">
-                {entry.value.toLocaleString()}
-                {entry.unit}
+                {formatNumber(entry.value)}
+                {entry.unit || unit}
               </span>
             </div>
           ))}
@@ -176,6 +184,13 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
           setRevenueData(chartData)
           setServiceBreakdown(servicesData)
           setPeakHoursData(peakHours)
+
+          // Re-sort peak hours to be chronological 09-21
+          const sortedPeakHours = [...peakHours].sort((a, b) => {
+            return parseInt(a.hour) - parseInt(b.hour)
+          })
+          setPeakHoursData(sortedPeakHours)
+
           setStaffStatus(staffData)
         }
       } catch (error) {
@@ -300,7 +315,7 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
             <DollarSign className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${kpis.revenue.value.toLocaleString()}</div>
+            <div className="text-2xl font-bold">${formatNumber(kpis.revenue.value)}</div>
             <p className="text-xs text-muted-foreground mt-1 flex items-center">
               {revenueChange >= 0 ? (
                 <TrendingUp className="h-3 w-3 text-confirmed mr-1" />
@@ -321,7 +336,7 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
             <Wallet className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${kpis.avgCheck.value}</div>
+            <div className="text-2xl font-bold">${formatNumber(kpis.avgCheck.value)}</div>
             <p className="text-xs text-muted-foreground mt-1 flex items-center">
               {avgCheckChange >= 0 ? (
                 <TrendingUp className="h-3 w-3 text-confirmed mr-1" />
@@ -395,15 +410,14 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(value) => `$${value}`}
+                    tickFormatter={(value) => `$${formatNumber(value)}`}
                     dx={-10}
                   />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent', stroke: 'var(--color-border)' }} />
+                  <Tooltip content={<CustomTooltip unit="$" />} cursor={{ fill: 'transparent', stroke: 'var(--color-border)' }} />
                   <Area
                     type="monotone"
                     dataKey="revenue"
                     name="Revenue"
-                    unit=""
                     stroke="var(--color-primary)"
                     strokeWidth={2}
                     fillOpacity={1}
@@ -430,8 +444,8 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
                     data={serviceBreakdown}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
+                    innerRadius={70}
+                    outerRadius={100}
                     paddingAngle={2}
                     dataKey="value"
                   >
@@ -445,14 +459,15 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
                     verticalAlign="bottom"
                     align="center"
                     iconType="circle"
-                    formatter={(value) => <span className="text-sm text-muted-foreground ml-1">{value}</span>}
+                    formatter={(value) => <span className="text-sm text-foreground ml-1">{value}</span>}
                   />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none pb-8 text-center">
+              {/* Reduced size and centered nicely to avoid overlaps */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none pb-8 text-center" style={{ zIndex: 0 }}>
                 <div>
-                  <span className="text-3xl font-bold block">{serviceBreakdown.length}</span>
-                  <span className="text-xs text-muted-foreground uppercase">Categories</span>
+                  <span className="text-2xl font-bold block text-foreground">{serviceBreakdown.length}</span>
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-widest">Categories</span>
                 </div>
               </div>
             </div>
@@ -471,7 +486,7 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
           <CardContent>
             <div className="h-[200px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={peakHoursData}>
+                <BarChart data={peakHoursData} margin={{ top: 20, right: 0, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
                   <XAxis
                     dataKey="hour"
@@ -479,6 +494,14 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
+                  />
+                  <YAxis
+                    stroke="var(--color-muted-foreground)"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={formatNumber}
+                    width={30}
                   />
                   <Tooltip
                     cursor={{ fill: 'var(--color-muted)', opacity: 0.2 }}
@@ -521,6 +544,9 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
                   </span>
                 </div>
               ))}
+              {staffStatus.length === 0 && (
+                <div className="text-center text-muted-foreground text-sm py-4">No staff data available</div>
+              )}
             </div>
           </CardContent>
         </Card>

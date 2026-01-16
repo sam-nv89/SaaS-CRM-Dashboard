@@ -337,3 +337,9 @@ Dashboard теперь отображает реальные данные из S
 - **Графики:** Упрощены для лучшей читаемости данных.
 
 **Статус:** ✅ Соответствует макету темы
+
+## [2026-01-17] Phase 6: Authentication & Security
+- **Auth Infrastructure:** Installed \@supabase/ssr\, configured Middleware, created Login page.
+- **RLS Preparation:** Created SQL migration script \supabase/migrations/20260117_enable_rls.sql\.
+- **Roadmap:** Updated status for Phase 6 items.
+

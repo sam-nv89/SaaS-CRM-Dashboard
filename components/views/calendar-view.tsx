@@ -1,11 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronRight, Plus, Loader2 } from "lucide-react"
+import { ChevronRight, ChevronLeft, Plus, Loader2, Calendar as CalendarIcon } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { format, addDays, subDays, isSameDay, parseISO } from "date-fns"
 import type { Appointment } from "@/app/page"
 
 type AppointmentStatus = "confirmed" | "pending" | "canceled"
@@ -28,14 +29,56 @@ const viewModes = ["Day", "Week"] as const
 export function CalendarView({ appointments, onNewBooking, isLoading }: CalendarViewProps) {
   const [activeFilter, setActiveFilter] = useState<string>("All")
   const [viewMode, setViewMode] = useState<string>("Day")
+  const [currentDate, setCurrentDate] = useState(new Date())
+
+  const handlePrevDay = () => setCurrentDate((prev) => subDays(prev, 1))
+  const handleNextDay = () => setCurrentDate((prev) => addDays(prev, 1))
+  const handleToday = () => setCurrentDate(new Date())
+
+  const formattedDate = format(currentDate, "EEEE, MMMM d")
 
   const filteredAppointments = appointments.filter((apt) => {
+    // Date filter
+    try {
+      if (!isSameDay(parseISO(apt.date), currentDate)) return false
+    } catch (e) {
+      console.warn("Invalid date format:", apt.date)
+      return false
+    }
+
+    // Status filter
     if (activeFilter === "All") return true
     return apt.status === activeFilter.toLowerCase()
   })
 
+  // Sort by time
+  const sortedAppointments = [...filteredAppointments].sort((a, b) =>
+    a.time.localeCompare(b.time)
+  )
+
   return (
     <div className="space-y-4">
+      {/* Date Navigation */}
+      <div className="flex items-center justify-between bg-card p-2 rounded-xl border border-border shadow-sm">
+        <Button variant="ghost" size="icon" onClick={handlePrevDay}>
+          <ChevronLeft className="h-5 w-5 text-muted-foreground" />
+        </Button>
+
+        <div className="flex flex-col items-center cursor-pointer" onClick={handleToday}>
+          <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <CalendarIcon className="h-4 w-4 text-primary" />
+            {formattedDate}
+          </span>
+          {isSameDay(currentDate, new Date()) && (
+            <span className="text-[10px] text-primary font-medium">Today</span>
+          )}
+        </div>
+
+        <Button variant="ghost" size="icon" onClick={handleNextDay}>
+          <ChevronRight className="h-5 w-5 text-muted-foreground" />
+        </Button>
+      </div>
+
       {/* View Mode & Add Button */}
       <div className="flex items-center justify-between">
         <div className="flex gap-1 p-1 bg-secondary rounded-lg">
@@ -44,8 +87,12 @@ export function CalendarView({ appointments, onNewBooking, isLoading }: Calendar
               key={mode}
               variant="ghost"
               size="sm"
-              className={`h-8 px-4 rounded-md transition-all ${viewMode === mode ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              className={`h-8 px-4 rounded-md transition-all ${viewMode === mode
+                  ? "bg-card shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+                }`}
               onClick={() => setViewMode(mode)}
+              disabled={mode === "Week"} // Week view not implemented yet
             >
               {mode}
             </Button>
@@ -69,8 +116,8 @@ export function CalendarView({ appointments, onNewBooking, isLoading }: Calendar
             variant={activeFilter === filter ? "default" : "outline"}
             size="sm"
             className={`rounded-full shrink-0 transition-all ${activeFilter === filter
-              ? "bg-primary text-primary-foreground shadow-md"
-              : "bg-card text-foreground border-border hover:bg-secondary"
+                ? "bg-primary text-primary-foreground shadow-md"
+                : "bg-card text-foreground border-border hover:bg-secondary"
               }`}
             onClick={() => setActiveFilter(filter)}
           >
@@ -82,12 +129,12 @@ export function CalendarView({ appointments, onNewBooking, isLoading }: Calendar
       {/* Appointments Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-foreground">Appointments</h2>
-        <span className="text-sm text-muted-foreground">{filteredAppointments.length} bookings</span>
+        <span className="text-sm text-muted-foreground">{sortedAppointments.length} bookings</span>
       </div>
 
-      {/* Vertical Card List sorted by time */}
+      {/* Vertical Card List */}
       <div className="space-y-3">
-        {filteredAppointments.map((appointment) => (
+        {sortedAppointments.map((appointment) => (
           <Card
             key={appointment.id}
             className={`border-border bg-card overflow-hidden shadow-sm card-hover ${appointment.status === "canceled" ? "opacity-60" : ""
@@ -98,43 +145,36 @@ export function CalendarView({ appointments, onNewBooking, isLoading }: Calendar
                 {/* Color accent bar for master */}
                 <div className={`w-1 ${appointment.masterColor}`} />
 
-                {/* Time Column */}
-                <div className="w-20 shrink-0 bg-secondary/50 p-3 flex flex-col items-center justify-center border-r border-border">
-                  <span className="text-lg font-bold text-foreground">{appointment.time}</span>
-                  <span className="text-xs text-muted-foreground">{appointment.duration}</span>
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 p-3">
-                  <div className="flex items-start justify-between mb-2">
+                <div className="flex-1 p-4">
+                  <div className="flex justify-between items-start mb-2">
                     <div className="flex items-center gap-2">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                          {appointment.clientName
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p
-                          className={`font-medium text-foreground text-sm ${appointment.status === "canceled" ? "line-through" : ""}`}
-                        >
-                          {appointment.clientName}
-                        </p>
-                        <p className="text-xs text-muted-foreground">with {appointment.master}</p>
-                      </div>
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] px-2 py-0.5 capitalize ${statusStyles[appointment.status]}`}
+                      >
+                        {appointment.status}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <div className={`h-2 w-2 rounded-full ${appointment.masterColor}`} />
+                        {appointment.master}
+                      </span>
                     </div>
-                    <Badge variant="outline" className={`text-xs capitalize ${statusStyles[appointment.status]}`}>
-                      {appointment.status}
-                    </Badge>
+                    <span className="text-sm font-semibold text-foreground">{appointment.time}</span>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-foreground">{appointment.service}</span>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-secondary transition-colors">
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <h3 className="font-medium text-foreground">{appointment.clientName}</h3>
+                      <p className="text-sm text-muted-foreground">{appointment.service}</p>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 text-muted-foreground">
+                      <ChevronRight className="h-4 w-4" />
                     </Button>
+                  </div>
+
+                  <div className="mt-2 text-xs text-muted-foreground flex justify-between border-t border-border pt-2">
+                    <span>Duration: {appointment.duration}</span>
+                    <span>Ends: {appointment.endTime}</span>
                   </div>
                 </div>
               </div>
@@ -149,9 +189,12 @@ export function CalendarView({ appointments, onNewBooking, isLoading }: Calendar
         </div>
       )}
 
-      {!isLoading && filteredAppointments.length === 0 && (
+      {!isLoading && sortedAppointments.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-muted-foreground">No appointments found</p>
+          <p className="text-muted-foreground">No appointments for {formattedDate}</p>
+          <Button variant="link" onClick={onNewBooking} className="mt-2">
+            Create Booking
+          </Button>
         </div>
       )}
     </div>

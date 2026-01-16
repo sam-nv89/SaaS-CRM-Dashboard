@@ -113,6 +113,7 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated }: NewBo
       // Create UI-friendly version for immediate display
       const uiAppointment: Appointment = {
         id: created.id,
+        date: selectedDate,
         time: selectedTime,
         endTime: selectedTime,
         clientName: selectedClient.name,

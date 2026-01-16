@@ -19,6 +19,7 @@ export type TabId = "dashboard" | "calendar" | "clients" | "services" | "setting
 // UI-friendly appointment type (for calendar display)
 export interface Appointment {
   id: string
+  date: string // YYYY-MM-DD
   time: string
   endTime: string
   clientName: string
@@ -48,6 +49,7 @@ export default function BeautyFlowApp() {
       // Transform DB appointments to UI format
       const uiAppointments: Appointment[] = dbAppointments.map((apt) => ({
         id: apt.id,
+        date: apt.date,
         time: apt.time,
         endTime: apt.end_time,
         clientName: apt.master_name, // TODO: fetch client name from client_id

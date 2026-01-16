@@ -58,8 +58,14 @@ export default async function LoginPage(props: {
                         )}
                     </CardFooter>
                 </form>
-                <div className="pb-4 text-center">
-                    <p className="text-xs text-muted-foreground">App Version 1.1 (Debug)</p>
+                <div className="pb-4 text-center space-y-1">
+                    <p className="text-xs text-muted-foreground font-mono">Ver: 1.2 (Debug)</p>
+                    <p className="text-[10px] text-muted-foreground font-mono">
+                        URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? `${process.env.NEXT_PUBLIC_SUPABASE_URL.slice(0, 12)}...` : 'MISSING'}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-mono">
+                        Key: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Present' : 'MISSING'}
+                    </p>
                 </div>
             </Card>
         </div>

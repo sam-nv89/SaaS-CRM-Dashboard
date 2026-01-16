@@ -59,9 +59,9 @@ interface DashboardViewProps {
 
 type TimePeriod = "today" | "week" | "month" | "year"
 
-// Helper for formatting numbers with thousands separator (space)
+// Helper for formatting numbers with thousands separator (standard space)
 const formatNumber = (value: number) => {
-  return new Intl.NumberFormat('ru-RU').format(value)
+  return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
 
 // --- Custom Tooltip Component ---
@@ -271,8 +271,8 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
                 key={period}
                 onClick={() => setTimePeriod(period)}
                 className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${timePeriod === period
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
                   }`}
               >
                 {period.charAt(0).toUpperCase() + period.slice(1)}
@@ -412,6 +412,7 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
                     axisLine={false}
                     tickFormatter={(value) => `$${formatNumber(value)}`}
                     dx={-10}
+                    width={80}
                   />
                   <Tooltip content={<CustomTooltip unit="$" />} cursor={{ fill: 'transparent', stroke: 'var(--color-border)' }} />
                   <Area
@@ -496,7 +497,7 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={formatNumber}
-                    width={30}
+                    width={40}
                   />
                   <Tooltip
                     cursor={{ fill: 'var(--color-muted)', opacity: 0.2 }}
@@ -527,13 +528,13 @@ export function DashboardView({ onViewCalendar }: DashboardViewProps) {
                 <div key={staff.name} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={`w-2.5 h-2.5 rounded-full ${staff.status === 'busy' ? 'bg-orange-500' :
-                      staff.status === 'free' ? 'bg-green-500' : 'bg-gray-300'
+                        staff.status === 'free' ? 'bg-green-500' : 'bg-gray-300'
                       }`} />
                     <span className="font-medium text-sm">{staff.name}</span>
                   </div>
                   <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${staff.status === 'busy' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
-                    staff.status === 'free' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                      'bg-muted text-muted-foreground'
+                      staff.status === 'free' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                        'bg-muted text-muted-foreground'
                     }`}>
                     {staff.status.charAt(0).toUpperCase() + staff.status.slice(1)}
                   </span>

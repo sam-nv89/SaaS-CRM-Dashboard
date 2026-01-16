@@ -343,3 +343,8 @@ Dashboard теперь отображает реальные данные из S
 - **RLS Preparation:** Created SQL migration script \supabase/migrations/20260117_enable_rls.sql\.
 - **Roadmap:** Updated status for Phase 6 items.
 
+
+## [2026-01-17] Debugging Auth
+- Identified root cause of auth failure: 'Email signups are disabled' in Supabase project configuration.
+- Verified via direct API call.
+

@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { ChevronRight, ChevronLeft, Plus, Loader2, Calendar as CalendarIcon } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { format, isSameDay, parseISO } from "date-fns"
+import { format, isSameDay, parseISO, startOfWeek, endOfWeek, eachDayOfInterval, isToday } from "date-fns"
 import type { Appointment } from "@/app/page"
 
 type AppointmentStatus = "confirmed" | "pending" | "canceled"
@@ -44,13 +44,32 @@ export function CalendarView({
 
   const formattedDate = format(currentDate, "EEEE, MMMM d")
 
+  // Week view calculations
+  const weekDays = useMemo(() => {
+    const start = startOfWeek(currentDate, { weekStartsOn: 1 }) // Monday
+    const end = endOfWeek(currentDate, { weekStartsOn: 1 })
+    return eachDayOfInterval({ start, end })
+  }, [currentDate])
+
+  // Get appointments for a specific day
+  const getAppointmentsForDay = (day: Date): Appointment[] => {
+    return appointments.filter((apt) => {
+      try {
+        return isSameDay(parseISO(apt.date), day)
+      } catch {
+        return false
+      }
+    })
+  }
+
   const filteredAppointments = appointments.filter((apt) => {
-    // Date filter
-    try {
-      if (!isSameDay(parseISO(apt.date), currentDate)) return false
-    } catch (e) {
-      console.warn("Invalid date format:", apt.date)
-      return false
+    // Date filter - only for Day view
+    if (viewMode === "Day") {
+      try {
+        if (!isSameDay(parseISO(apt.date), currentDate)) return false
+      } catch {
+        return false
+      }
     }
 
     // Status filter
@@ -99,7 +118,6 @@ export function CalendarView({
                 : "text-muted-foreground hover:text-foreground"
                 }`}
               onClick={() => setViewMode(mode)}
-              disabled={mode === "Week"} // Week view not implemented yet
             >
               {mode}
             </Button>
@@ -133,76 +151,142 @@ export function CalendarView({
         ))}
       </div>
 
-      {/* Appointments Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground">Appointments</h2>
-        <span className="text-sm text-muted-foreground">{sortedAppointments.length} bookings</span>
-      </div>
+      {/* Week View */}
+      {viewMode === "Week" && (
+        <div className="space-y-2">
+          <div className="grid grid-cols-7 gap-1">
+            {weekDays.map((day) => {
+              const dayAppointments = getAppointmentsForDay(day)
+              const dayIsToday = isToday(day)
+              const isSelected = isSameDay(day, currentDate)
 
-      {/* Vertical Card List */}
-      <div className="space-y-3">
-        {sortedAppointments.map((appointment) => (
-          <Card
-            key={appointment.id}
-            className={`border-border bg-card overflow-hidden shadow-sm card-hover ${appointment.status === "canceled" ? "opacity-60" : ""
-              }`}
-          >
-            <CardContent className="p-0">
-              <div className="flex">
-                {/* Color accent bar for master */}
-                <div className={`w-1 ${appointment.masterColor}`} />
+              return (
+                <div
+                  key={day.toISOString()}
+                  className={`rounded-lg p-2 min-h-[120px] transition-colors cursor-pointer ${dayIsToday ? 'bg-primary/10 border-2 border-primary' :
+                      isSelected ? 'bg-secondary' : 'bg-card border border-border'
+                    }`}
+                  onClick={() => {
+                    // Navigate to this day
+                    const diff = day.getTime() - currentDate.getTime()
+                    const daysDiff = Math.round(diff / (1000 * 60 * 60 * 24))
+                    if (daysDiff > 0) {
+                      for (let i = 0; i < daysDiff; i++) onNextDay()
+                    } else if (daysDiff < 0) {
+                      for (let i = 0; i < Math.abs(daysDiff); i++) onPrevDay()
+                    }
+                  }}
+                >
+                  <div className="text-center mb-2">
+                    <p className={`text-[10px] uppercase ${dayIsToday ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
+                      {format(day, 'EEE')}
+                    </p>
+                    <p className={`text-lg font-semibold ${dayIsToday ? 'text-primary' : 'text-foreground'}`}>
+                      {format(day, 'd')}
+                    </p>
+                  </div>
 
-                <div className="flex-1 p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className={`text-[10px] px-2 py-0.5 capitalize ${statusStyles[appointment.status]}`}
+                  <div className="space-y-1">
+                    {dayAppointments.slice(0, 3).map((apt) => (
+                      <div
+                        key={apt.id}
+                        className={`text-[9px] p-1 rounded ${apt.masterColor} bg-opacity-20 truncate`}
                       >
-                        {appointment.status}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <div className={`h-2 w-2 rounded-full ${appointment.masterColor}`} />
-                        {appointment.master}
-                      </span>
-                    </div>
-                    <span className="text-sm font-semibold text-foreground">{appointment.time}</span>
-                  </div>
-
-                  <div className="flex justify-between items-end">
-                    <div>
-                      <h3 className="font-medium text-foreground">{appointment.clientName}</h3>
-                      <p className="text-sm text-muted-foreground">{appointment.service}</p>
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 text-muted-foreground">
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="mt-2 text-xs text-muted-foreground flex justify-between border-t border-border pt-2">
-                    <span>Duration: {appointment.duration}</span>
-                    <span>Ends: {appointment.endTime}</span>
+                        <span className="font-medium">{apt.time}</span>
+                        <span className="ml-1 text-muted-foreground">{apt.clientName.split(' ')[0]}</span>
+                      </div>
+                    ))}
+                    {dayAppointments.length > 3 && (
+                      <p className="text-[9px] text-muted-foreground text-center">
+                        +{dayAppointments.length - 3} more
+                      </p>
+                    )}
+                    {dayAppointments.length === 0 && (
+                      <p className="text-[9px] text-muted-foreground text-center">—</p>
+                    )}
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {isLoading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              )
+            })}
+          </div>
         </div>
       )}
 
-      {!isLoading && sortedAppointments.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No appointments for {formattedDate}</p>
-          <Button variant="link" onClick={onNewBooking} className="mt-2">
-            Create Booking
-          </Button>
-        </div>
+      {/* Day View */}
+      {viewMode === "Day" && (
+        <>
+          {/* Appointments Header */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground">Appointments</h2>
+            <span className="text-sm text-muted-foreground">{sortedAppointments.length} bookings</span>
+          </div>
+
+          {/* Vertical Card List */}
+          <div className="space-y-3">
+            {sortedAppointments.map((appointment) => (
+              <Card
+                key={appointment.id}
+                className={`border-border bg-card overflow-hidden shadow-sm card-hover ${appointment.status === "canceled" ? "opacity-60" : ""
+                  }`}
+              >
+                <CardContent className="p-0">
+                  <div className="flex">
+                    {/* Color accent bar for master */}
+                    <div className={`w-1 ${appointment.masterColor}`} />
+
+                    <div className="flex-1 p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] px-2 py-0.5 capitalize ${statusStyles[appointment.status]}`}
+                          >
+                            {appointment.status}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <div className={`h-2 w-2 rounded-full ${appointment.masterColor}`} />
+                            {appointment.master}
+                          </span>
+                        </div>
+                        <span className="text-sm font-semibold text-foreground">{appointment.time}</span>
+                      </div>
+
+                      <div className="flex justify-between items-end">
+                        <div>
+                          <h3 className="font-medium text-foreground">{appointment.clientName}</h3>
+                          <p className="text-sm text-muted-foreground">{appointment.service}</p>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 text-muted-foreground">
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="mt-2 text-xs text-muted-foreground flex justify-between border-t border-border pt-2">
+                        <span>Duration: {appointment.duration}</span>
+                        <span>Ends: {appointment.endTime}</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {isLoading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          )}
+
+          {!isLoading && sortedAppointments.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No appointments for {formattedDate}</p>
+              <Button variant="link" onClick={onNewBooking} className="mt-2">
+                Create Booking
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

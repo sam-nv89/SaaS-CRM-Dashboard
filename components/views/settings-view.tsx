@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Building2, Clock, Bell, Upload, Loader2 } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { Building2, Clock, Bell, Upload, Loader2, X, Image as ImageIcon } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -34,6 +34,8 @@ export function SettingsView() {
   const [phone, setPhone] = useState("+1 234-567-8900")
   const [businessHours, setBusinessHours] = useState<BusinessHour[]>(defaultHours)
   const [notifications, setNotifications] = useState<NotificationSettings>(defaultNotifications)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const logoInputRef = useRef<HTMLInputElement>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -164,26 +166,66 @@ export function SettingsView() {
                   <Input
                     type="file"
                     className="hidden"
+                    ref={logoInputRef}
                     id="logo-upload"
                     accept="image/*"
                     onChange={(e) => {
-                      if (e.target.files?.[0]) {
-                        toast.success("Logo uploaded successfully", {
-                          description: "This is a demo feature. Real storage not connected."
-                        })
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        // Check file size (max 5MB)
+                        if (file.size > 5 * 1024 * 1024) {
+                          toast.error("File too large", {
+                            description: "Please select an image under 5MB"
+                          })
+                          return
+                        }
+                        // Create preview
+                        const reader = new FileReader()
+                        reader.onloadend = () => {
+                          setLogoPreview(reader.result as string)
+                          toast.success("Logo uploaded", {
+                            description: "Preview updated. Click Save to apply."
+                          })
+                        }
+                        reader.readAsDataURL(file)
                       }
                     }}
                   />
-                  <Button
-                    variant="outline"
-                    className="w-full h-20 border-dashed bg-transparent hover:bg-secondary/50 transition-colors"
-                    onClick={() => document.getElementById('logo-upload')?.click()}
-                  >
-                    <div className="flex flex-col items-center gap-2">
-                      <Upload className="h-5 w-5 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">Upload Logo</span>
+                  {logoPreview ? (
+                    <div className="relative group">
+                      <div className="w-full h-24 rounded-lg border border-border overflow-hidden bg-secondary/30">
+                        <img
+                          src={logoPreview}
+                          alt="Logo preview"
+                          className="w-full h-full object-contain p-2"
+                        />
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => {
+                          setLogoPreview(null)
+                          if (logoInputRef.current) {
+                            logoInputRef.current.value = ''
+                          }
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
                     </div>
-                  </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="w-full h-20 border-dashed bg-transparent hover:bg-secondary/50 transition-colors"
+                      onClick={() => logoInputRef.current?.click()}
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <Upload className="h-5 w-5 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Upload Logo (max 5MB)</span>
+                      </div>
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardContent>

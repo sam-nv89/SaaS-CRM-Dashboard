@@ -22,6 +22,12 @@ export interface Service {
     created_at: string
 }
 
+export interface Category {
+    id: string
+    name: string
+    created_at: string
+}
+
 export interface Appointment {
     id: string
     client_id: string

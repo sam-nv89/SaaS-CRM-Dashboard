@@ -114,30 +114,47 @@ export async function deleteService(id: string): Promise<void> {
     if (error) throw error
 }
 
+import type { Category } from "@/types/database"
+
+// ... (other imports)
+
 // ============ CATEGORIES ============
 
 /**
- * Get unique categories from services
+ * Get all categories
  */
-export async function getCategories(): Promise<string[]> {
+export async function getCategories(): Promise<Category[]> {
     const { data, error } = await supabase
-        .from('services')
-        .select('category')
+        .from('categories')
+        .select('*')
+        .order('name')
 
     if (error) throw error
-
-    const categories = [...new Set(data?.map(s => s.category).filter(Boolean) as string[])]
-    return categories.sort()
+    return data || []
 }
 
 /**
- * Rename a category (updates all services with that category)
+ * Create a new category
+ */
+export async function createCategory(name: string): Promise<Category> {
+    const { data, error } = await supabase
+        .from('categories')
+        .insert({ name })
+        .select()
+        .single()
+
+    if (error) throw error
+    return data
+}
+
+/**
+ * Rename a category (updates all services with that category automatically via FK cascade)
  */
 export async function renameCategory(oldName: string, newName: string): Promise<void> {
     const { error } = await supabase
-        .from('services')
-        .update({ category: newName })
-        .eq('category', oldName)
+        .from('categories')
+        .update({ name: newName })
+        .eq('name', oldName)
 
     if (error) throw error
 }
@@ -146,10 +163,21 @@ export async function renameCategory(oldName: string, newName: string): Promise<
  * Delete a category (moves services to 'Other')
  */
 export async function deleteCategory(categoryName: string): Promise<void> {
+    // 1. Move services to 'Other'
+    if (categoryName !== 'Other') {
+        const { error: moveError } = await supabase
+            .from('services')
+            .update({ category: 'Other' })
+            .eq('category', categoryName)
+
+        if (moveError) throw moveError
+    }
+
+    // 2. Delete the category
     const { error } = await supabase
-        .from('services')
-        .update({ category: 'Other' })
-        .eq('category', categoryName)
+        .from('categories')
+        .delete()
+        .eq('name', categoryName)
 
     if (error) throw error
 }

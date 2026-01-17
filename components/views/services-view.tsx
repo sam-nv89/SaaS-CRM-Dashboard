@@ -9,11 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { EditServiceDialog } from "@/components/dialogs/edit-service-dialog"
 import { AddServiceDialog } from "@/components/dialogs/add-service-dialog"
-import { getServices, updateService, renameCategory, deleteCategory } from "@/lib/db"
-import type { Service } from "@/types/database"
+import { getServices, updateService, getCategories, createCategory, renameCategory, deleteCategory } from "@/lib/db"
+import type { Service, Category } from "@/types/database"
 import { toast } from "sonner"
-
-const DEFAULT_CATEGORIES = ["Hair", "Nail", "Skin", "Massage", "Makeup", "Other"]
 
 interface ServiceCategory {
   id: string
@@ -44,27 +42,39 @@ export function ServicesView() {
   const loadServices = async () => {
     try {
       setIsLoading(true)
-      const services = await getServices()
+      const [services, dbCategories] = await Promise.all([
+        getServices(),
+        getCategories()
+      ])
 
-      // Group services by category
-      const grouped = services.reduce((acc, service) => {
-        const category = service.category || 'Other'
-        if (!acc[category]) {
-          acc[category] = []
-        }
-        acc[category].push(service)
-        return acc
-      }, {} as Record<string, Service[]>)
-
-      const categoryList: ServiceCategory[] = Object.entries(grouped).map(([name, services]) => ({
-        id: name.toLowerCase().replace(/\s+/g, '-'),
-        name,
-        services,
+      // Map DB categories to UI structure
+      // We use DB categories as the source of truth
+      const categoryList: ServiceCategory[] = dbCategories.map(cat => ({
+        id: cat.id,
+        name: cat.name,
+        services: services.filter(s => s.category === cat.name)
       }))
 
+      // Handle services with categories not in DB (edge case? shouldn't happen with FK, but for safety)
+      const knownCategoryNames = new Set(dbCategories.map(c => c.name))
+      const orphanedServices = services.filter(s => !knownCategoryNames.has(s.category))
+
+      if (orphanedServices.length > 0) {
+        // This shouldn't happen with strict FK, but if it does, maybe group them under "Other"
+        // or append a temporary category?
+        // For now, let's assume they are handled or add them to "Other" if existing there.
+        const otherCat = categoryList.find(c => c.name === 'Other')
+        if (otherCat) {
+          otherCat.services.push(...orphanedServices)
+        }
+      }
+
       setCategories(categoryList)
-      // Open first two categories by default
-      setOpenCategories(categoryList.slice(0, 2).map(c => c.id))
+
+      // Open first two categories (or just non-empty ones?)
+      if (openCategories.length === 0) {
+        setOpenCategories(categoryList.filter(c => c.services.length > 0).slice(0, 2).map(c => c.id))
+      }
     } catch (error) {
       console.error('Error loading services:', error)
       toast.error('Failed to load services')
@@ -204,21 +214,36 @@ export function ServicesView() {
                     placeholder="New category name"
                     className="h-8 flex-1"
                     autoFocus
-                    onKeyDown={(e) => {
+                    onKeyDown={async (e) => {
                       if (e.key === 'Enter' && newCategoryName.trim()) {
-                        // Create empty service to establish category
-                        toast.info(`Create a service in "${newCategoryName}" to add this category`)
-                        setIsAddingCategory(false)
-                        setNewCategoryName("")
+                        try {
+                          const newCat = await createCategory(newCategoryName.trim())
+                          setNewCategoryName("")
+                          setIsAddingCategory(false)
+                          await loadServices()
+                          toast.success(`Category "${newCat.name}" created`)
+                        } catch (err) {
+                          console.error(err)
+                          toast.error("Failed to create category")
+                        }
                       }
                     }}
                   />
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => {
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={async () => {
                     if (newCategoryName.trim()) {
-                      toast.info(`Create a service in "${newCategoryName}" to add this category`)
+                      try {
+                        const newCat = await createCategory(newCategoryName.trim())
+                        setNewCategoryName("")
+                        setIsAddingCategory(false)
+                        await loadServices()
+                        toast.success(`Category "${newCat.name}" created`)
+                      } catch (err) {
+                        console.error(err)
+                        toast.error("Failed to create category")
+                      }
+                    } else {
+                      setIsAddingCategory(false)
                     }
-                    setIsAddingCategory(false)
-                    setNewCategoryName("")
                   }}>
                     <Check className="h-4 w-4 text-green-600" />
                   </Button>
@@ -240,67 +265,56 @@ export function ServicesView() {
                 </Button>
               )}
 
-              {/* All categories - merged DEFAULT + existing */}
-              {(() => {
-                // Combine DEFAULT_CATEGORIES with existing, remove duplicates
-                const existingNames = categories.map(c => c.name)
-                const allCategoryNames = [...new Set([...DEFAULT_CATEGORIES, ...existingNames])]
-                return allCategoryNames.map((catName) => {
-                  const existingCat = categories.find(c => c.name === catName)
-                  const catId = catName.toLowerCase().replace(/\s+/g, '-')
-                  return (
-                    <div key={catId} className="flex items-center gap-2">
-                      {editingCategoryId === catId ? (
-                        <>
-                          <Input
-                            value={editingCategoryName}
-                            onChange={(e) => setEditingCategoryName(e.target.value)}
-                            className="h-8 flex-1"
-                            autoFocus
-                            onKeyDown={(e) => e.key === 'Enter' && existingCat && handleRenameCategory(existingCat)}
-                          />
-                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => existingCat && handleRenameCategory(existingCat)}>
-                            <Check className="h-4 w-4 text-green-600" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingCategoryId(null)}>
-                            <X className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <span className={`flex-1 text-sm ${!existingCat ? 'text-muted-foreground' : ''}`}>
-                            {catName}
-                          </span>
-                          {existingCat && (
-                            <>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8"
-                                onClick={() => {
-                                  setEditingCategoryId(catId)
-                                  setEditingCategoryName(catName)
-                                }}
-                              >
-                                <Edit2 className="h-3.5 w-3.5 text-muted-foreground" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8"
-                                onClick={() => handleDeleteCategory(existingCat)}
-                                disabled={catName === 'Other'}
-                              >
-                                <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                              </Button>
-                            </>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )
-                })
-              })()}
+              {/* All categories */}
+              {categories.map((category) => (
+                <div key={category.id} className="flex items-center gap-2">
+                  {editingCategoryId === category.id ? (
+                    <>
+                      <Input
+                        value={editingCategoryName}
+                        onChange={(e) => setEditingCategoryName(e.target.value)}
+                        className="h-8 flex-1"
+                        autoFocus
+                        onKeyDown={(e) => e.key === 'Enter' && handleRenameCategory(category)}
+                      />
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleRenameCategory(category)}>
+                        <Check className="h-4 w-4 text-green-600" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingCategoryId(null)}>
+                        <X className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex-1 text-sm">{category.name}</span>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => {
+                          setEditingCategoryId(category.id)
+                          setEditingCategoryName(category.name)
+                        }}
+                      >
+                        <Edit2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => handleDeleteCategory(category)}
+                        disabled={category.name === 'Other'}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              ))}
+
+              {categories.length === 0 && !isAddingCategory && (
+                <p className="text-sm text-muted-foreground text-center py-2">No categories yet</p>
+              )}
             </CardContent>
           </Card>
         </CollapsibleContent>

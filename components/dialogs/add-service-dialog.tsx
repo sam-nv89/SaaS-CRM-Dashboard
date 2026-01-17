@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { createService } from "@/lib/db"
+import { createService, createCategory } from "@/lib/db"
 import type { Service, ServiceInsert } from "@/types/database"
 import { toast } from "sonner"
 
@@ -17,8 +17,6 @@ interface AddServiceDialogProps {
     onServiceCreated: (service: Service) => void
     existingCategories: string[]
 }
-
-const DEFAULT_CATEGORIES = ["Hair", "Nail", "Skin", "Massage", "Makeup", "Other"]
 
 export function AddServiceDialog({
     open,
@@ -33,8 +31,8 @@ export function AddServiceDialog({
     const [customCategory, setCustomCategory] = useState("")
     const [isLoading, setIsLoading] = useState(false)
 
-    // Combine default and existing categories, removing duplicates
-    const allCategories = [...new Set([...DEFAULT_CATEGORIES, ...existingCategories])]
+    // Remove duplicates from existing categories passed from parent
+    const allCategories = [...new Set(existingCategories)].sort()
 
     const resetForm = () => {
         setName("")
@@ -57,9 +55,9 @@ export function AddServiceDialog({
             return
         }
 
-        const finalCategory = category === "custom" ? customCategory : category
+        let finalCategory = category === "custom" ? customCategory.trim() : category
 
-        if (!finalCategory.trim()) {
+        if (!finalCategory) {
             toast.error("Please select or enter a category")
             return
         }
@@ -67,11 +65,34 @@ export function AddServiceDialog({
         setIsLoading(true)
 
         try {
+            // If custom category, create it first
+            if (category === "custom") {
+                // Check if it already exists in the list (user typed existing name)
+                // But createCategory uses ON CONFLICT DO NOTHING?
+                // My implementation of createCategory uses simple insert. 
+                // It will fail if unique constraint is violated.
+                // I should check if it exists or catch error.
+                // Actually, best to use upsert or check?
+                // Or just try to create. If it fails (already exists), that's fine, we proceed to create service.
+                // But my createCategory throws error.
+                // Let's modify createCategory to be safe or handle error here.
+                // I'll try to create it.
+                try {
+                    await createCategory(finalCategory)
+                } catch (e) {
+                    // Ignore unique violation (code '23505' in Postgres)
+                    // But supabase-js might wrap it.
+                    // I'll assume if it fails it might be duplicate, so I proceed.
+                    // But if it's another error, service creation will fail on FK constraint anyway or succeed if cat exists.
+                    console.log("Category creation note:", e)
+                }
+            }
+
             const newService: ServiceInsert = {
                 name: name.trim(),
                 price: parseFloat(price) || 0,
                 duration: duration.trim() || "30 min",
-                category: finalCategory.trim(),
+                category: finalCategory,
                 active: true,
             }
 

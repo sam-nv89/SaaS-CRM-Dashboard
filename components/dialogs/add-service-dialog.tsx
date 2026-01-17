@@ -67,24 +67,15 @@ export function AddServiceDialog({
         try {
             // If custom category, create it first
             if (category === "custom") {
-                // Check if it already exists in the list (user typed existing name)
-                // But createCategory uses ON CONFLICT DO NOTHING?
-                // My implementation of createCategory uses simple insert. 
-                // It will fail if unique constraint is violated.
-                // I should check if it exists or catch error.
-                // Actually, best to use upsert or check?
-                // Or just try to create. If it fails (already exists), that's fine, we proceed to create service.
-                // But my createCategory throws error.
-                // Let's modify createCategory to be safe or handle error here.
-                // I'll try to create it.
                 try {
                     await createCategory(finalCategory)
-                } catch (e) {
-                    // Ignore unique violation (code '23505' in Postgres)
-                    // But supabase-js might wrap it.
-                    // I'll assume if it fails it might be duplicate, so I proceed.
-                    // But if it's another error, service creation will fail on FK constraint anyway or succeed if cat exists.
-                    console.log("Category creation note:", e)
+                } catch (e: any) {
+                    // Ignore unique violation (Postgres code '23505')
+                    if (e?.code !== '23505' && !e?.message?.includes('duplicate key')) {
+                        console.error("Category creation error:", e)
+                        // If it's a serious error, we should probably stop?
+                        // But maybe we try to create service anyway (if permissions differ)
+                    }
                 }
             }
 
@@ -103,9 +94,10 @@ export function AddServiceDialog({
             toast.success("Service created!", {
                 description: `${created.name} has been added to ${created.category}.`,
             })
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error creating service:", error)
-            toast.error("Failed to create service")
+            const msg = error?.message || "Unknown error"
+            toast.error(`Failed to create service: ${msg}`)
         } finally {
             setIsLoading(false)
         }

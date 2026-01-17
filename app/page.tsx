@@ -25,9 +25,11 @@ export interface Appointment {
   endTime: string
   clientName: string
   service: string
+  serviceId?: string // Added ID
   duration: string
   status: "confirmed" | "pending" | "canceled"
   master: string
+  stylistId?: string // Added ID
   masterColor: string
 }
 
@@ -67,9 +69,11 @@ export default function BeautyFlowApp() {
         endTime: apt.end_time,
         clientName: apt.client?.name ?? 'Unknown Client',
         service: apt.service?.name ?? 'Unknown Service',
+        serviceId: apt.service_id, // Map service_id
         duration: apt.duration,
         status: apt.status,
         master: apt.master_name,
+        stylistId: apt.stylist_id, // Map stylist_id
         masterColor: apt.master_color,
       }))
 
@@ -80,30 +84,6 @@ export default function BeautyFlowApp() {
       setAppointments([])
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const addAppointment = async (apt: Appointment) => {
-    // Add to UI immediately (optimistic update)
-    setAppointments((prev) => [...prev, apt].sort((a, b) => a.time.localeCompare(b.time)))
-
-    // Save to Supabase
-    try {
-      const dbAppointment: AppointmentInsert = {
-        client_id: apt.id, // This should be actual client_id from selection
-        service_id: apt.id, // This should be actual service_id from selection
-        master_name: apt.master,
-        master_color: apt.masterColor,
-        date: new Date().toISOString().split('T')[0], // Today
-        time: apt.time,
-        end_time: apt.endTime,
-        duration: apt.duration,
-        status: apt.status,
-      }
-      await createAppointment(dbAppointment)
-    } catch (error) {
-      console.error('Error saving appointment:', error)
-      toast.error('Failed to save appointment')
     }
   }
 
@@ -121,6 +101,7 @@ export default function BeautyFlowApp() {
             onPrevDay={handlePrevDay}
             onNextDay={handleNextDay}
             onToday={handleToday}
+            onDataChange={loadAppointments}
           />
         )
       case "clients":
@@ -152,7 +133,7 @@ export default function BeautyFlowApp() {
       <NewBookingDialog
         open={bookingDialogOpen}
         onOpenChange={setBookingDialogOpen}
-        onBookingCreated={addAppointment}
+        onBookingCreated={loadAppointments}
         initialDate={currentDate}
       />
 

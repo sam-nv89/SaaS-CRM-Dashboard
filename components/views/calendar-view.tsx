@@ -11,6 +11,8 @@ import type { Appointment } from "@/app/page"
 
 type AppointmentStatus = "confirmed" | "pending" | "canceled"
 
+import { EditBookingDialog } from "@/components/dialogs/edit-booking-dialog"
+
 interface CalendarViewProps {
   appointments: Appointment[]
   onNewBooking: () => void
@@ -19,6 +21,7 @@ interface CalendarViewProps {
   onPrevDay: () => void
   onNextDay: () => void
   onToday: () => void
+  onDataChange?: () => void
 }
 
 const statusStyles: Record<AppointmentStatus, string> = {
@@ -38,9 +41,30 @@ export function CalendarView({
   onPrevDay,
   onNextDay,
   onToday,
+  onDataChange
 }: CalendarViewProps) {
   const [activeFilter, setActiveFilter] = useState<string>("All")
   const [viewMode, setViewMode] = useState<string>("Day")
+
+  // Edit State
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null)
+  const [isEditOpen, setIsEditOpen] = useState(false)
+
+  const handleEdit = (apt: Appointment) => {
+    setEditingAppointment(apt)
+    setIsEditOpen(true)
+  }
+
+  const handleEditClosed = (open: boolean) => {
+    setIsEditOpen(open)
+    if (!open) {
+      setEditingAppointment(null)
+    }
+  }
+
+  const handleUpdated = () => {
+    if (onDataChange) onDataChange()
+  }
 
   const formattedDate = format(currentDate, "EEEE, MMMM d")
 
@@ -164,7 +188,7 @@ export function CalendarView({
                 <div
                   key={day.toISOString()}
                   className={`rounded-lg p-2 min-h-[120px] transition-colors cursor-pointer ${dayIsToday ? 'bg-primary/10 border-2 border-primary' :
-                      isSelected ? 'bg-secondary' : 'bg-card border border-border'
+                    isSelected ? 'bg-secondary' : 'bg-card border border-border'
                     }`}
                   onClick={() => {
                     // Navigate to this day
@@ -190,7 +214,11 @@ export function CalendarView({
                     {dayAppointments.slice(0, 3).map((apt) => (
                       <div
                         key={apt.id}
-                        className={`text-[9px] p-1 rounded ${apt.masterColor} bg-opacity-20 truncate`}
+                        className={`text-[9px] p-1 rounded ${apt.masterColor} bg-opacity-20 truncate cursor-pointer hover:opacity-80`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleEdit(apt)
+                        }}
                       >
                         <span className="font-medium">{apt.time}</span>
                         <span className="ml-1 text-muted-foreground">{apt.clientName.split(' ')[0]}</span>
@@ -226,8 +254,9 @@ export function CalendarView({
             {sortedAppointments.map((appointment) => (
               <Card
                 key={appointment.id}
-                className={`border-border bg-card overflow-hidden shadow-sm card-hover ${appointment.status === "canceled" ? "opacity-60" : ""
+                className={`border-border bg-card overflow-hidden shadow-sm card-hover cursor-pointer transition-all hover:bg-secondary/20 ${appointment.status === "canceled" ? "opacity-60" : ""
                   }`}
+                onClick={() => handleEdit(appointment)}
               >
                 <CardContent className="p-0">
                   <div className="flex">
@@ -288,6 +317,14 @@ export function CalendarView({
           )}
         </>
       )}
+
+      {/* Edit Dialog */}
+      <EditBookingDialog
+        open={isEditOpen}
+        onOpenChange={handleEditClosed}
+        onAppointmentUpdated={handleUpdated}
+        appointment={editingAppointment}
+      />
     </div>
   )
 }

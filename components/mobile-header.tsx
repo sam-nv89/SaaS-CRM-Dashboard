@@ -82,23 +82,12 @@ export function MobileHeader({
       <div className="px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-md">
+            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-md flex-shrink-0">
               <span className="text-primary-foreground font-bold text-sm">{salonName.charAt(0).toUpperCase()}</span>
             </div>
-            <div>
+            <div className="min-w-0">
               <span className="font-semibold text-foreground text-sm">{salonName}</span>
-              {salonAddress && <p className="text-xs text-muted-foreground truncate max-w-[180px]">{salonAddress}</p>}
-              {activeTab === "calendar" && (
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Button variant="ghost" size="icon" className="h-5 w-5 p-0 hover:bg-secondary" onClick={onPrevDay}>
-                    <ChevronLeft className="h-3 w-3" />
-                  </Button>
-                  <span>{formatDate(currentDate)}</span>
-                  <Button variant="ghost" size="icon" className="h-5 w-5 p-0 hover:bg-secondary" onClick={onNextDay}>
-                    <ChevronRight className="h-3 w-3" />
-                  </Button>
-                </div>
-              )}
+              {salonAddress && <p className="text-xs text-muted-foreground">{salonAddress}</p>}
             </div>
           </div>
           <div className="flex items-center gap-2">

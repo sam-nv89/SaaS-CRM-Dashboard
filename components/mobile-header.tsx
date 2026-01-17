@@ -1,14 +1,15 @@
 "use client"
 
-import { Bell, Plus, Search, ChevronLeft, ChevronRight, Calendar, Clock, AlertCircle, X, LogOut } from "lucide-react"
+import { Bell, Plus, Search, ChevronLeft, ChevronRight, Calendar, Clock, AlertCircle, LogOut, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { TabId } from "@/app/page"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
+import type { User as SupabaseUser } from "@supabase/supabase-js"
 
 interface MobileHeaderProps {
   activeTab: TabId
@@ -39,7 +40,16 @@ export function MobileHeader({
   onNextDay,
 }: MobileHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false)
+  const [user, setUser] = useState<SupabaseUser | null>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+    }
+    getUser()
+  }, [])
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-US", {
@@ -51,7 +61,7 @@ export function MobileHeader({
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    router.refresh() // This will trigger middleware to redirect to /login
+    router.refresh()
   }
 
   return (
@@ -100,7 +110,6 @@ export function MobileHeader({
                 </div>
                 <ScrollArea className="h-[280px]">
                   <div className="space-y-1 p-2">
-                    {/* Sample notifications */}
                     <div className="flex items-start gap-3 p-3 rounded-lg hover:bg-secondary/50 transition-colors cursor-pointer">
                       <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                         <Calendar className="h-4 w-4 text-primary" />
@@ -141,15 +150,31 @@ export function MobileHeader({
               </PopoverContent>
             </Popover>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 hover:bg-secondary transition-colors"
-              onClick={handleLogout}
-              title="Log Out"
-            >
-              <LogOut className="h-5 w-5 text-muted-foreground" />
-            </Button>
+            {/* User Menu */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-secondary transition-colors">
+                  <User className="h-5 w-5 text-muted-foreground" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-0" align="end">
+                <div className="px-4 py-3 border-b border-border">
+                  <p className="text-sm font-medium">Account</p>
+                  <p className="text-xs text-muted-foreground truncate">{user?.email || 'Loading...'}</p>
+                </div>
+                <div className="p-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Log out
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
 
             <Button
               size="sm"

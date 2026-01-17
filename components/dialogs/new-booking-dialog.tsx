@@ -88,7 +88,8 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
       setClients(clientsData)
       setServices(servicesData.filter(s => s.active))
       setStylists(stylistsData.filter(s => s.active))
-      setCategories(categoriesData)
+      // Map Category objects to strings for AddServiceDialog
+      setCategories(categoriesData.map(c => c.name))
     } catch (error) {
       console.error('Error loading data:', error)
       toast.error('Failed to load data')
@@ -114,10 +115,23 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
     onOpenChange(open)
   }
 
-  const handleClientSaved = (client: Client) => {
-    setClients(prev => [...prev, client])
-    setSelectedClient(client)
-    setIsClientSheetOpen(false)
+  // Handle new client creation from ClientSheet
+  const handleClientSaved = async (clientData: { name: string; phone: string; email: string; notes?: string }) => {
+    // We need to create the client here because ClientSheet only passes form data
+    try {
+      const newClient = await createClient({
+        ...clientData,
+        status: 'new',
+        total_visits: 0
+      })
+      setClients(prev => [...prev, newClient])
+      setSelectedClient(newClient)
+      // ClientSheet handles its own closing via loading state, but we ensure state update
+      toast.success("Client created")
+    } catch (error) {
+      console.error("Error creating client:", error)
+      throw error // Propagate to ClientSheet to show error/stop loading
+    }
   }
 
   const handleServiceCreated = (service: Service) => {
@@ -180,15 +194,14 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
         client_id: selectedClient.id,
         service_id: selectedService.id,
         stylist_id: selectedStylist.id,
-        service_name: selectedService.name,
-        client_name: selectedClient.name,
+        // Helper fields for UI/Legacy (if supported by DB trigger or column)
+        // Removing service_name/client_name as they are likely not in schema
         master_name: selectedStylist.name,
         master_color: selectedStylist.color,
         date: date.toISOString().split("T")[0],
         time: selectedTime,
         end_time: endTime,
         status: "confirmed",
-        price: selectedService.price,
       }
 
       await createAppointment(dbAppointment)

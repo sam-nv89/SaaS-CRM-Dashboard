@@ -608,7 +608,7 @@ export async function getStaffStatus(): Promise<StaffStatusItem[]> {
     // 1. Get all active stylists (Source of Truth)
     const activeStylists = await getStylists().then(data => data.filter(s => s.active))
 
-    // 2. Get today's appointments for these stylists
+    // 2. Get today's appointments
     const { data: appointments, error } = await supabase
         .from('appointments')
         .select(`
@@ -625,18 +625,14 @@ export async function getStaffStatus(): Promise<StaffStatusItem[]> {
 
     if (error) throw error
 
-    // 3. Map each stylist to their current status
+    // 3. Map status
     return activeStylists.map(stylist => {
-        // Find if this stylist has an active appointment RIGHT NOW
         const currentAppointment = (appointments || []).find((apt: any) => {
-            // Priority: Match by stylist_id
             if (apt.stylist_id === stylist.id) {
-                return apt.time <= currentTime && apt.end_time > currentTime
+                return apt.time <= currentTime && (apt.end_time > currentTime || !apt.end_time) // Handle missing end_time safely
             }
-            // Fallback: Match by name (legacy support)
-            // Only if stylist_id is null/missing in appointment
             if (!apt.stylist_id && apt.master_name === stylist.name) {
-                return apt.time <= currentTime && apt.end_time > currentTime
+                return apt.time <= currentTime && (apt.end_time > currentTime || !apt.end_time)
             }
             return false
         }) as any
@@ -649,7 +645,6 @@ export async function getStaffStatus(): Promise<StaffStatusItem[]> {
                 service: currentAppointment.service?.name || null,
             }
         }
-
         return {
             name: stylist.name,
             status: 'free' as const,
@@ -657,6 +652,63 @@ export async function getStaffStatus(): Promise<StaffStatusItem[]> {
             service: null,
         }
     })
+}
+
+/**
+ * REPAIR DATABASE: Fixes missing end_time and links legacy stylists
+ * Run this manually from Settings -> System
+ */
+export async function repairDatabase(): Promise<{ fixed: number, message: string }> {
+    let fixedCount = 0
+    try {
+        // 1. Fetch ALL appointments
+        const { data: appointments, error } = await supabase
+            .from('appointments')
+            .select('*')
+
+        if (error) throw error
+        if (!appointments) return { fixed: 0, message: "No appointments found" }
+
+        // 2. Fetch ALL stylists for linking
+        const { data: stylists } = await supabase.from('stylists').select('*')
+        const stylistMap = new Map((stylists || []).map(s => [s.name, s.id]))
+
+        // 3. Iterate and fix
+        for (const apt of appointments) {
+            let needsUpdate = false
+            const updates: any = {}
+
+            // Fix 1: Missing end_time
+            if (!apt.end_time && apt.time && apt.duration) {
+                const [h, m] = apt.time.split(':').map(Number)
+                const durationMinutes = parseInt(apt.duration) || 60
+                const totalMinutes = h * 60 + m + durationMinutes
+                const endH = Math.floor(totalMinutes / 60) % 24
+                const endM = totalMinutes % 60
+                updates.end_time = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`
+                needsUpdate = true
+            }
+
+            // Fix 2: Link legacy master_name to stylist_id
+            if (!apt.stylist_id && apt.master_name && stylistMap.has(apt.master_name)) {
+                updates.stylist_id = stylistMap.get(apt.master_name)
+                needsUpdate = true
+            }
+
+            if (needsUpdate) {
+                await supabase
+                    .from('appointments')
+                    .update(updates)
+                    .eq('id', apt.id)
+                fixedCount++
+            }
+        }
+
+        return { fixed: fixedCount, message: `Successfully repaired ${fixedCount} appointments.` }
+    } catch (e: any) {
+        console.error("Repair failed:", e)
+        throw e
+    }
 }
 
 /**

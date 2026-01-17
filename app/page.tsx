@@ -72,9 +72,11 @@ export default function BeautyFlowApp() {
         serviceId: apt.service_id, // Map service_id
         duration: apt.duration,
         status: apt.status,
-        master: apt.stylist?.name || apt.master_name,
-        stylistId: apt.stylist_id, // Map stylist_id
-        masterColor: apt.stylist?.color || apt.master_color,
+        // Logic to handle "Deleted Stylist" vs "Legacy Record"
+        // If stylist_id exists but stylist object is null, it means the stylist was deleted.
+        master: apt.stylist?.name ?? (apt.stylist_id ? 'Deleted Stylist' : apt.master_name),
+        stylistId: apt.stylist_id,
+        masterColor: apt.stylist?.color ?? (apt.stylist_id ? 'bg-gray-400' : apt.master_color),
       }))
 
       setAppointments(uiAppointments)

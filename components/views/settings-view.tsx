@@ -721,6 +721,29 @@ export function SettingsView() {
                     {isSeeding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Database className="h-4 w-4 mr-2 text-primary" />}
                     Generate 50 Test Records
                   </Button>
+
+                  <div className="mt-4 pt-4 border-t border-border/50">
+                    <p className="text-sm text-foreground font-semibold">Maintenance</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Run this if you experience issues with "Ghost Stylists" or booking conflicts.
+                      It updates missing data fields.
+                    </p>
+                    <Button
+                      variant="ghost"
+                      onClick={async () => {
+                        const { repairDatabase } = await import("@/lib/db")
+                        toast.promise(repairDatabase(), {
+                          loading: "Repairing database...",
+                          success: (data) => `Fixed ${data.fixed} records!`,
+                          error: "Repair failed"
+                        })
+                      }}
+                      className="w-full justify-center mt-2 text-primary hover:bg-primary/10 border border-transparent hover:border-primary/20 transition-all"
+                    >
+                      <Check className="h-4 w-4 mr-2" />
+                      Fix Database Integrity
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>

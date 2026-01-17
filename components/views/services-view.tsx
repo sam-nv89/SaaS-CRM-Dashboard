@@ -31,6 +31,8 @@ export function ServicesView() {
   const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false)
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
   const [editingCategoryName, setEditingCategoryName] = useState("")
+  const [newCategoryName, setNewCategoryName] = useState("")
+  const [isAddingCategory, setIsAddingCategory] = useState(false)
 
   // Load services from Supabase on mount
   useEffect(() => {
@@ -191,6 +193,52 @@ export function ServicesView() {
         <CollapsibleContent className="mt-2">
           <Card className="border-border bg-card">
             <CardContent className="p-3 space-y-2">
+              {/* Add new category */}
+              {isAddingCategory ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="New category name"
+                    className="h-8 flex-1"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newCategoryName.trim()) {
+                        // Create empty service to establish category
+                        toast.info(`Create a service in "${newCategoryName}" to add this category`)
+                        setIsAddingCategory(false)
+                        setNewCategoryName("")
+                      }
+                    }}
+                  />
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => {
+                    if (newCategoryName.trim()) {
+                      toast.info(`Create a service in "${newCategoryName}" to add this category`)
+                    }
+                    setIsAddingCategory(false)
+                    setNewCategoryName("")
+                  }}>
+                    <Check className="h-4 w-4 text-green-600" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => {
+                    setIsAddingCategory(false)
+                    setNewCategoryName("")
+                  }}>
+                    <X className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start text-muted-foreground"
+                  onClick={() => setIsAddingCategory(true)}
+                >
+                  + Add Category
+                </Button>
+              )}
+
+              {/* Existing categories */}
               {categories.map((category) => (
                 <div key={category.id} className="flex items-center gap-2">
                   {editingCategoryId === category.id ? (
@@ -212,7 +260,6 @@ export function ServicesView() {
                   ) : (
                     <>
                       <span className="flex-1 text-sm">{category.name}</span>
-                      <span className="text-xs text-muted-foreground">{category.services.length}</span>
                       <Button
                         size="icon"
                         variant="ghost"
@@ -237,7 +284,7 @@ export function ServicesView() {
                   )}
                 </div>
               ))}
-              {categories.length === 0 && (
+              {categories.length === 0 && !isAddingCategory && (
                 <p className="text-sm text-muted-foreground text-center py-2">No categories yet</p>
               )}
             </CardContent>

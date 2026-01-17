@@ -36,6 +36,7 @@ export function SettingsView() {
   const [businessHours, setBusinessHours] = useState<BusinessHour[]>(defaultHours)
   const [notifications, setNotifications] = useState<NotificationSettings>(defaultNotifications)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -115,6 +116,9 @@ export function SettingsView() {
         if (settings.notifications) {
           setNotifications(settings.notifications as NotificationSettings)
         }
+        if (settings.logo_url) {
+          setLogoPreview(settings.logo_url)
+        }
       }
     } catch (error) {
       console.error('Error loading settings:', error)
@@ -130,13 +134,35 @@ export function SettingsView() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
+      let logoUrl = logoPreview
+
+      // Upload logo if new file selected
+      if (logoFile) {
+        const fileExt = logoFile.name.split('.').pop()
+        const fileName = `salon-logo-${Date.now()}.${fileExt}`
+        const { error: uploadError } = await supabase.storage
+          .from('logos')
+          .upload(fileName, logoFile)
+
+        if (uploadError) throw uploadError
+
+        const { data } = supabase.storage
+          .from('logos')
+          .getPublicUrl(fileName)
+
+        logoUrl = data.publicUrl
+      }
+
       await updateSettings({
         salon_name: salonName,
         address,
         phone,
         business_hours: businessHours,
         notifications,
+        logo_url: logoUrl || undefined,
       })
+
+      setLogoFile(null)
       toast.success("Settings saved!", {
         description: "Your changes have been saved successfully.",
       })
@@ -327,6 +353,9 @@ export function SettingsView() {
                           })
                           return
                         }
+
+                        setLogoFile(file)
+
                         // Create preview
                         const reader = new FileReader()
                         reader.onloadend = () => {

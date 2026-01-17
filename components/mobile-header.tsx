@@ -44,6 +44,7 @@ export function MobileHeader({
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [salonName, setSalonName] = useState("BeautyFlow")
   const [salonAddress, setSalonAddress] = useState("")
+  const [salonLogo, setSalonLogo] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -59,6 +60,9 @@ export function MobileHeader({
       }
       if (settings?.address) {
         setSalonAddress(settings.address)
+      }
+      if (settings?.logo_url) {
+        setSalonLogo(settings.logo_url)
       }
     }
     loadData()
@@ -82,9 +86,15 @@ export function MobileHeader({
       <div className="px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-md flex-shrink-0">
-              <span className="text-primary-foreground font-bold text-sm">{salonName.charAt(0).toUpperCase()}</span>
-            </div>
+            {salonLogo ? (
+              <div className="h-8 w-8 rounded-lg overflow-hidden flex-shrink-0 border border-border/50">
+                <img src={salonLogo} alt={salonName} className="h-full w-full object-cover" />
+              </div>
+            ) : (
+              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-md flex-shrink-0">
+                <span className="text-primary-foreground font-bold text-sm">{salonName.charAt(0).toUpperCase()}</span>
+              </div>
+            )}
             <div className="min-w-0">
               <span className="font-semibold text-foreground text-sm">{salonName}</span>
               {salonAddress && <p className="text-xs text-muted-foreground">{salonAddress}</p>}

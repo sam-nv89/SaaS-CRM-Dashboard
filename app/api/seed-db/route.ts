@@ -7,20 +7,16 @@ export async function GET() {
         // 1. Get reference data
         const { data: services, error: servicesError } = await supabase.from('services').select('*')
         const { data: clients, error: clientsError } = await supabase.from('clients').select('*')
+        const { data: stylists, error: stylistsError } = await supabase.from('stylists').select('*').eq('active', true)
 
         if (servicesError) throw servicesError
         if (clientsError) throw clientsError
+        if (stylistsError) throw stylistsError
 
-        // Masters hardcoded list
-        const masterList = [
-            { master_name: 'Sarah Johnson', master_color: '#F472B6' },
-            { master_name: 'Michael Chen', master_color: '#60A5FA' },
-            { master_name: 'Emily Davis', master_color: '#34D399' },
-            { master_name: 'James Wilson', master_color: '#FBBF24' }
-        ]
-
-        if (!services || !clients || services.length === 0 || clients.length === 0) {
-            return NextResponse.json({ error: 'No services or clients found. Create them first.' }, { status: 400 })
+        if (!services?.length || !clients?.length || !stylists?.length) {
+            return NextResponse.json({
+                error: 'Missing reference data. Ensure you have Services, Clients, and Stylists in the database.'
+            }, { status: 400 })
         }
 
         // 2. Generate 50 appointments
@@ -41,7 +37,7 @@ export async function GET() {
 
             const service = services[Math.floor(Math.random() * services.length)]
             const client = clients[Math.floor(Math.random() * clients.length)]
-            const master = masterList[Math.floor(Math.random() * masterList.length)]
+            const stylist = stylists[Math.floor(Math.random() * stylists.length)]
 
             // Calculate end time
             let durationMin = 60
@@ -71,8 +67,9 @@ export async function GET() {
             newAppointments.push({
                 client_id: client.id,
                 service_id: service.id,
-                master_name: master.master_name,
-                master_color: master.master_color,
+                stylist_id: stylist.id,
+                master_name: stylist.name,
+                master_color: stylist.color,
                 date: dateStr,
                 time: timeStr,
                 end_time: endTimeStr,

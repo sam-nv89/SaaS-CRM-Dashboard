@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { format, parse, addMinutes } from 'date-fns'
 import type {
     Client,
     ClientInsert,
@@ -11,6 +12,7 @@ import type {
     AppointmentUpdate,
     AppointmentWithDetails,
     BusinessSettings,
+    BusinessHour,
     Category,
     Stylist
 } from '@/types/database'
@@ -755,4 +757,76 @@ export async function checkAvailability(
 
     // If we found any conflicting appointment -> not available
     return data === null || data.length === 0
+}
+
+/**
+ * Get available time slots for a specific stylist and date
+ * taking into account business hours and existing appointments.
+ */
+export async function getAvailableTimeSlots(
+    stylistId: string,
+    date: Date,
+    serviceDurationMinutes: number,
+    excludeAppointmentId?: string
+): Promise<string[]> {
+    // 1. Get Business Hours
+    const settings = await getSettings()
+    if (!settings || !settings.business_hours) return []
+
+    // Format date to Day name (e.g. "Monday")
+    const dayName = format(date, 'EEEE')
+    const schedule = (settings.business_hours as BusinessHour[]).find(h => h.day === dayName)
+
+    if (!schedule || !schedule.is_open || !schedule.open || !schedule.close) {
+        return [] // Closed on this day
+    }
+
+    // 2. Get existing appointments for this stylist on this date
+    const dateStr = format(date, 'yyyy-MM-dd')
+    const { data: existingAppointments, error } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('stylist_id', stylistId)
+        .eq('date', dateStr)
+        .in('status', ['confirmed', 'pending'])
+        .neq('id', excludeAppointmentId || '')
+
+    if (error) {
+        console.error("Error fetching appointments:", error)
+        return []
+    }
+
+    // 3. Generate slots
+    const slots: string[] = []
+    let current = parse(schedule.open, 'HH:mm', date)
+    const closeTime = parse(schedule.close, 'HH:mm', date)
+
+    // Helper: milliseconds to minutes
+    const toMinutes = (d: Date) => d.getHours() * 60 + d.getMinutes()
+
+    while (current < closeTime) {
+        // Calculate potential end time for this slot
+        const slotEnd = addMinutes(current, serviceDurationMinutes)
+
+        // Check if slot fits within business hours
+        if (slotEnd <= closeTime) {
+            // Check collisions
+            const slotStartStr = format(current, 'HH:mm')
+            const slotEndStr = format(slotEnd, 'HH:mm')
+
+            const hasCollision = existingAppointments?.some(apt => {
+                // Collision logic: (SlotStart < AptEnd) AND (SlotEnd > AptStart)
+                return slotStartStr < (apt.end_time || '23:59') && slotEndStr > apt.time
+            })
+
+            if (!hasCollision) {
+                slots.push(slotStartStr)
+            }
+        }
+
+        // Increment by 30 mins
+        current = addMinutes(current, 30)
+    }
+
+    return slots
 }

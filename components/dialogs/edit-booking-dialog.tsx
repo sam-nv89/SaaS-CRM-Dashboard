@@ -54,6 +54,34 @@ export function EditBookingDialog({ open, onOpenChange, onAppointmentUpdated, ap
     const [isLoading, setIsLoading] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
 
+    const [availableSlots, setAvailableSlots] = useState<string[]>([])
+
+    // Load available slots
+    useEffect(() => {
+        const fetchSlots = async () => {
+            if (date && selectedStylistId && selectedServiceId) {
+                const { getAvailableTimeSlots } = await import("@/lib/db")
+                const selectedService = services.find(s => s.id === selectedServiceId)
+                let durationMin = 60
+
+                if (selectedService) {
+                    const dur = selectedService.duration.toLowerCase()
+                    if (dur.includes('min') && !dur.includes('h')) {
+                        const matches = dur.match(/(\d+)/)
+                        if (matches) durationMin = parseInt(matches[0])
+                    } else if (dur.includes('h')) {
+                        if (dur.includes('.')) durationMin = parseFloat(dur) * 60
+                        else durationMin = parseInt(dur) * 60
+                    }
+                }
+
+                const slots = await getAvailableTimeSlots(selectedStylistId, date, durationMin, appointment?.id)
+                setAvailableSlots(slots)
+            }
+        }
+        fetchSlots()
+    }, [date, selectedStylistId, selectedServiceId, services, appointment])
+
     useEffect(() => {
         if (open) {
             loadData()
@@ -291,12 +319,24 @@ export function EditBookingDialog({ open, onOpenChange, onAppointmentUpdated, ap
                             <Label className="text-sm text-muted-foreground">Time</Label>
                             <Select value={selectedTime} onValueChange={setSelectedTime}>
                                 <SelectTrigger className="h-10">
-                                    <SelectValue />
+                                    <SelectValue placeholder={availableSlots.length > 0 ? "Select time" : "No slots"} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {timeSlots.map(t => (
-                                        <SelectItem key={t} value={t}>{t}</SelectItem>
-                                    ))}
+                                    {availableSlots.length > 0 ? (
+                                        availableSlots.map(t => (
+                                            <SelectItem key={t} value={t}>{t}</SelectItem>
+                                        ))
+                                    ) : (
+                                        <div className="p-2 text-sm text-muted-foreground text-center">
+                                            No slots available
+                                        </div>
+                                    )}
+                                    {/* Include current time if it's not in availableSlots (to avoid hidden value) */}
+                                    {selectedTime && !availableSlots.includes(selectedTime) && (
+                                        <SelectItem key={selectedTime} value={selectedTime}>
+                                            {selectedTime} (Current)
+                                        </SelectItem>
+                                    )}
                                 </SelectContent>
                             </Select>
                         </div>

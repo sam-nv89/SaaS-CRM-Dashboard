@@ -11,7 +11,8 @@ import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import {
   getClients, getServices, createAppointment, createService,
-  createStylist,
+  createStylist, createClient,
+  getStylists,
   checkAvailability,
   getCategories,
 } from "@/lib/db"
@@ -102,6 +103,37 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
       setIsLoadingData(false)
     }
   }
+
+  // Effect to load available slots when date or stylist changes
+  useEffect(() => {
+    const fetchSlots = async () => {
+      if (step === 3 && date && selectedStylist && selectedService) {
+        // Reset selected time if it's no longer valid/available (optional, but good UX)
+        // setSelectedTime("") 
+
+        // Import dynamically if needed or just use the imported one (we need to add it to imports)
+        const { getAvailableTimeSlots } = await import("@/lib/db")
+
+        let durationMin = 60
+        // Parse duration from string "1h 30min" etc to number
+        // Re-using logic or simplified parser since calculateEndTime does it but returns string time
+        const dur = selectedService.duration.toLowerCase()
+        if (dur.includes('min') && !dur.includes('h')) {
+          const matches = dur.match(/(\d+)/)
+          if (matches) durationMin = parseInt(matches[0])
+        } else if (dur.includes('h')) {
+          if (dur.includes('.')) durationMin = parseFloat(dur) * 60
+          else durationMin = parseInt(dur) * 60
+        }
+
+        const slots = await getAvailableTimeSlots(selectedStylist.id, date, durationMin)
+        setAvailableSlots(slots)
+      }
+    }
+    fetchSlots()
+  }, [step, date, selectedStylist, selectedService])
+
+  const [availableSlots, setAvailableSlots] = useState<string[]>([])
 
   const filteredClients = clients.filter(
     (c) => c.name.toLowerCase().includes(clientSearch.toLowerCase()) || c.phone.includes(clientSearch),
@@ -431,16 +463,27 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
                       <Label className="text-sm font-medium text-muted-foreground">Time</Label>
                       <Select value={selectedTime} onValueChange={setSelectedTime}>
                         <SelectTrigger className="h-10">
-                          <SelectValue placeholder="Select time" />
+                          <SelectValue placeholder={availableSlots.length > 0 ? "Select start time" : "No available slots"} />
                         </SelectTrigger>
                         <SelectContent>
-                          {timeSlots.map((time) => (
-                            <SelectItem key={time} value={time}>
-                              {time}
-                            </SelectItem>
-                          ))}
+                          {availableSlots.length > 0 ? (
+                            availableSlots.map((time) => (
+                              <SelectItem key={time} value={time}>
+                                {time}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div className="p-2 text-sm text-muted-foreground text-center">
+                              No slots available
+                            </div>
+                          )}
                         </SelectContent>
                       </Select>
+                      {availableSlots.length === 0 && date && selectedStylist && (
+                        <p className="text-xs text-destructive">
+                          Stylist is busy or salon is closed.
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}

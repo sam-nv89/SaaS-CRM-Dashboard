@@ -43,6 +43,7 @@ export function MobileHeader({
   const [searchOpen, setSearchOpen] = useState(false)
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [salonName, setSalonName] = useState("BeautyFlow")
+  const [salonAddress, setSalonAddress] = useState("")
   const router = useRouter()
 
   useEffect(() => {
@@ -55,6 +56,9 @@ export function MobileHeader({
       const settings = await getSettings()
       if (settings?.salon_name) {
         setSalonName(settings.salon_name)
+      }
+      if (settings?.address) {
+        setSalonAddress(settings.address)
       }
     }
     loadData()
@@ -83,7 +87,7 @@ export function MobileHeader({
             </div>
             <div>
               <span className="font-semibold text-foreground text-sm">{salonName}</span>
-              <p className="text-xs text-muted-foreground">{tabTitles[activeTab]}</p>
+              {salonAddress && <p className="text-xs text-muted-foreground truncate max-w-[180px]">{salonAddress}</p>}
               {activeTab === "calendar" && (
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Button variant="ghost" size="icon" className="h-5 w-5 p-0 hover:bg-secondary" onClick={onPrevDay}>

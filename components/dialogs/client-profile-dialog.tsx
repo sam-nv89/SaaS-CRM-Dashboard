@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { User, Phone, Mail, Calendar, Clock, FileText, Star, Loader2 } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
@@ -110,6 +110,9 @@ export function ClientProfileDialog({ open, onOpenChange, client }: ClientProfil
             <DialogContent className="max-w-md mx-4 rounded-xl max-h-[85vh] overflow-hidden flex flex-col">
                 <DialogHeader>
                     <DialogTitle className="text-lg">Client Profile</DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground">
+                        View client details and appointment history.
+                    </DialogDescription>
                 </DialogHeader>
 
                 <ScrollArea className="flex-1 -mx-6 px-6">

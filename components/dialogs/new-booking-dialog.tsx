@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Check, ChevronRight, Clock, Loader2, Search, Plus, User, Calendar as CalendarIcon } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -108,8 +108,9 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
   useEffect(() => {
     const fetchSlots = async () => {
       if (step === 3 && date && selectedStylist && selectedService) {
-        // Reset selected time if it's no longer valid/available (optional, but good UX)
-        // setSelectedTime("") 
+        // console.warn('[DEBUG] NewBookingDialog: Fetching slots for', { date, stylist: selectedStylist.name, service: selectedService.name })
+        // const { toast } = await import("sonner") // Dynamic import might be needed or use existing toast
+        // toast.info(`Debug: Checking availability for ${selectedStylist.name}...`)
 
         // Import dynamically if needed or just use the imported one (we need to add it to imports)
         const { getAvailableTimeSlots } = await import("@/lib/db")
@@ -126,7 +127,10 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
           else durationMin = parseInt(dur) * 60
         }
 
+        console.warn(`[DEBUG] Calling getAvailableTimeSlots with duration: ${durationMin} min`)
+
         const slots = await getAvailableTimeSlots(selectedStylist.id, date, durationMin)
+        console.warn(`[DEBUG] Received ${slots.length} slots`)
         setAvailableSlots(slots)
       }
     }
@@ -480,8 +484,8 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
                         </SelectContent>
                       </Select>
                       {availableSlots.length === 0 && date && selectedStylist && (
-                        <p className="text-xs text-destructive">
-                          Stylist is busy or salon is closed.
+                        <p className="text-xs text-destructive font-medium mt-1">
+                          Stylist is busy or salon is closed (Check Settings &gt; Business Hours).
                         </p>
                       )}
                     </div>

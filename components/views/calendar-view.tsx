@@ -12,6 +12,9 @@ import type { Appointment } from "@/app/page"
 type AppointmentStatus = "confirmed" | "pending" | "canceled"
 
 import { EditBookingDialog } from "@/components/dialogs/edit-booking-dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useEffect } from "react"
+import type { Stylist } from "@/types/database"
 
 interface CalendarViewProps {
   appointments: Appointment[]
@@ -66,6 +69,18 @@ export function CalendarView({
     if (onDataChange) onDataChange()
   }
 
+  const [stylists, setStylists] = useState<Stylist[]>([])
+  const [selectedStylistId, setSelectedStylistId] = useState<string>("all")
+
+  useEffect(() => {
+    const loadStylists = async () => {
+      const { getStylists } = await import("@/lib/db")
+      const data = await getStylists()
+      setStylists(data.filter(s => s.active))
+    }
+    loadStylists()
+  }, [])
+
   const formattedDate = format(currentDate, "EEEE, MMMM d")
 
   // Week view calculations
@@ -97,14 +112,32 @@ export function CalendarView({
     }
 
     // Status filter
-    if (activeFilter === "All") return true
-    return apt.status === activeFilter.toLowerCase()
+    if (activeFilter !== "All" && apt.status !== activeFilter.toLowerCase()) return false
+
+    // Stylist filter
+    if (selectedStylistId !== "all") {
+      // console.log(`[DEBUG] Filtering: ${apt.id} StylistID: ${apt.stylistId} vs Selected: ${selectedStylistId}`)
+      // Note: apt.stylistId might be undefined if not mapped correctly in page.tsx
+      // Let's debug this specific field
+      if (apt.stylistId !== selectedStylistId) return false
+    }
+
+    return true
   })
 
   // Sort by time
   const sortedAppointments = [...filteredAppointments].sort((a, b) =>
     a.time.localeCompare(b.time)
   )
+
+  // Debug: Log first filtered appointment to check structure
+  /*
+  useEffect(() => {
+    if (filteredAppointments.length > 0) {
+        console.log('[DEBUG] Calendar Filtered Apt Sample:', filteredAppointments[0])
+    }
+  }, [filteredAppointments])
+  */
 
   return (
     <div className="space-y-4">
@@ -130,31 +163,51 @@ export function CalendarView({
       </div>
 
       {/* View Mode & Add Button */}
-      <div className="flex items-center justify-between">
-        <div className="flex gap-1 p-1 bg-secondary rounded-lg">
-          {viewModes.map((mode) => (
-            <Button
-              key={mode}
-              variant="ghost"
-              size="sm"
-              className={`h-8 px-4 rounded-md transition-all ${viewMode === mode
-                ? "bg-card shadow-sm text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-                }`}
-              onClick={() => setViewMode(mode)}
-            >
-              {mode}
-            </Button>
-          ))}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className="flex gap-1 p-1 bg-secondary rounded-lg">
+            {viewModes.map((mode) => (
+              <Button
+                key={mode}
+                variant="ghost"
+                size="sm"
+                className={`h-8 px-4 rounded-md transition-all ${viewMode === mode
+                  ? "bg-card shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+                  }`}
+                onClick={() => setViewMode(mode)}
+              >
+                {mode}
+              </Button>
+            ))}
+          </div>
+          <Button
+            size="sm"
+            className="bg-primary hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
+            onClick={onNewBooking}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            New
+          </Button>
         </div>
-        <Button
-          size="sm"
-          className="bg-primary hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
-          onClick={onNewBooking}
-        >
-          <Plus className="h-4 w-4 mr-1" />
-          New
-        </Button>
+
+        {/* Stylist Filter */}
+        <Select value={selectedStylistId} onValueChange={setSelectedStylistId}>
+          <SelectTrigger className="h-9 w-full">
+            <SelectValue placeholder="All Spectialists" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Specialists</SelectItem>
+            {stylists.map(s => (
+              <SelectItem key={s.id} value={s.id}>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${s.color}`} />
+                  {s.name}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Filter Pills */}

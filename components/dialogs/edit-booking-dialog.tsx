@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Check, Loader2, Calendar as CalendarIcon, X, Trash2 } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
@@ -231,6 +231,9 @@ export function EditBookingDialog({ open, onOpenChange, onAppointmentUpdated, ap
             <DialogContent className="max-w-md mx-4 rounded-xl p-0 overflow-hidden">
                 <DialogHeader className="p-4 border-b border-border bg-muted/20">
                     <DialogTitle>Edit Appointment</DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground">
+                        Change date, time, stylist, or status of the booking.
+                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="p-4 space-y-4">

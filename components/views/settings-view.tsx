@@ -15,11 +15,11 @@ import type { BusinessHour, NotificationSettings, Stylist } from "@/types/databa
 
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
-const defaultHours: BusinessHour[] = daysOfWeek.map((day) => ({
+export const defaultHours: BusinessHour[] = daysOfWeek.map((day) => ({
   day,
-  open: day === "Sunday" ? "" : "09:00",
-  close: day === "Sunday" ? "" : "21:00",
-  is_open: day !== "Sunday",
+  open: "09:00",
+  close: "21:00",
+  is_open: true,
 }))
 
 const defaultNotifications: NotificationSettings = {

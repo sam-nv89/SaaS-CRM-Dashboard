@@ -771,13 +771,42 @@ export async function getAvailableTimeSlots(
 ): Promise<string[]> {
     // 1. Get Business Hours
     const settings = await getSettings()
-    if (!settings || !settings.business_hours) return []
+    console.warn('[DEBUG] getAvailableTimeSlots: Settings:', settings?.business_hours)
+
+    let schedule: BusinessHour | undefined
 
     // Format date to Day name (e.g. "Monday")
     const dayName = format(date, 'EEEE')
-    const schedule = (settings.business_hours as BusinessHour[]).find(h => h.day === dayName)
+    console.warn('[DEBUG] Checking availability for:', dayName, date)
 
-    if (!schedule || !schedule.is_open || !schedule.open || !schedule.close) {
+    if (!settings || !settings.business_hours || !Array.isArray(settings.business_hours)) {
+        console.warn('[DEBUG] No business hours settings found. Using DEFAULT (09:00 - 21:00).')
+        // Fallback default schedule
+        schedule = {
+            day: dayName,
+            open: '09:00',
+            close: '21:00',
+            is_open: true
+        }
+    } else {
+        // Find schedule case-insensitively
+        schedule = (settings.business_hours as BusinessHour[]).find(
+            h => h.day.toLowerCase() === dayName.toLowerCase()
+        )
+    }
+
+    if (!schedule) {
+        console.warn(`[DEBUG] No schedule found for ${dayName}. Using DEFAULT (09:00 - 21:00)`)
+        schedule = {
+            day: dayName,
+            open: '09:00',
+            close: '21:00',
+            is_open: true
+        }
+    }
+
+    if (!schedule.is_open || !schedule.open || !schedule.close) {
+        console.warn(`[DEBUG] Shop is closed on ${dayName}`)
         return [] // Closed on this day
     }
 
@@ -795,6 +824,7 @@ export async function getAvailableTimeSlots(
         console.error("Error fetching appointments:", error)
         return []
     }
+    console.log(`[DEBUG] Found ${existingAppointments?.length} existing appointments for stylist ${stylistId}`)
 
     // 3. Generate slots
     const slots: string[] = []
@@ -816,7 +846,13 @@ export async function getAvailableTimeSlots(
 
             const hasCollision = existingAppointments?.some(apt => {
                 // Collision logic: (SlotStart < AptEnd) AND (SlotEnd > AptStart)
-                return slotStartStr < (apt.end_time || '23:59') && slotEndStr > apt.time
+                // Note: apt.end_time might be null/undefined in legacy data, treat as 1 hour or strict check
+                const aptEnd = apt.end_time || '23:59'
+                const isCollision = slotStartStr < aptEnd && slotEndStr > apt.time
+                if (isCollision) {
+                    console.log(`[DEBUG] Collision detected: New(${slotStartStr}-${slotEndStr}) vs Existing(${apt.time}-${aptEnd})`)
+                }
+                return isCollision
             })
 
             if (!hasCollision) {
@@ -828,5 +864,6 @@ export async function getAvailableTimeSlots(
         current = addMinutes(current, 30)
     }
 
+    console.log(`[DEBUG] Generated ${slots.length} available slots`)
     return slots
 }

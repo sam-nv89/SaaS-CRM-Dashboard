@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useState, useEffect } from "react"
 import type { TabId } from "@/app/page"
 import { supabase } from "@/lib/supabase"
+import { getSettings } from "@/lib/db"
 import { useRouter } from "next/navigation"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 
@@ -41,14 +42,22 @@ export function MobileHeader({
 }: MobileHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false)
   const [user, setUser] = useState<SupabaseUser | null>(null)
+  const [salonName, setSalonName] = useState("BeautyFlow")
   const router = useRouter()
 
   useEffect(() => {
-    const getUser = async () => {
+    const loadData = async () => {
+      // Load user
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
+
+      // Load salon settings
+      const settings = await getSettings()
+      if (settings?.salon_name) {
+        setSalonName(settings.salon_name)
+      }
     }
-    getUser()
+    loadData()
   }, [])
 
   const formatDate = (date: Date) => {
@@ -70,10 +79,11 @@ export function MobileHeader({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-md">
-              <span className="text-primary-foreground font-bold text-sm">B</span>
+              <span className="text-primary-foreground font-bold text-sm">{salonName.charAt(0).toUpperCase()}</span>
             </div>
             <div>
-              <span className="font-semibold text-foreground">{tabTitles[activeTab]}</span>
+              <span className="font-semibold text-foreground text-sm">{salonName}</span>
+              <p className="text-xs text-muted-foreground">{tabTitles[activeTab]}</p>
               {activeTab === "calendar" && (
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Button variant="ghost" size="icon" className="h-5 w-5 p-0 hover:bg-secondary" onClick={onPrevDay}>

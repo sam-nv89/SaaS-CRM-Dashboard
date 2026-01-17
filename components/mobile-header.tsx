@@ -159,8 +159,10 @@ export function MobileHeader({
               </PopoverTrigger>
               <PopoverContent className="w-64 p-0" align="end">
                 <div className="px-4 py-3 border-b border-border">
-                  <p className="text-sm font-medium">Account</p>
-                  <p className="text-xs text-muted-foreground truncate">{user?.email || 'Loading...'}</p>
+                  <p className="text-sm font-medium">
+                    {user?.user_metadata?.full_name || user?.user_metadata?.first_name || 'User'}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
                 </div>
                 <div className="p-2">
                   <Button

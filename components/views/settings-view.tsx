@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Building2, Clock, Bell, Upload, Loader2, X, Image as ImageIcon, Database } from "lucide-react"
+import { Building2, Clock, Bell, Upload, Loader2, X, Image as ImageIcon, Database, User } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
 import { getSettings, updateSettings } from "@/lib/db"
+import { supabase } from "@/lib/supabase"
 import type { BusinessHour, NotificationSettings } from "@/types/database"
 
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]

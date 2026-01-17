@@ -1,4 +1,4 @@
-import { login, signup } from './actions'
+import { login } from './actions'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -52,14 +52,18 @@ export default async function LoginPage(props: {
                         <Button formAction={login} className="w-full shadow-sm hover:shadow-md transition-all">
                             Sign In
                         </Button>
-                        <Button formAction={signup} variant="outline" className="w-full bg-background">
-                            Create account
-                        </Button>
+
+                        <p className="text-sm text-muted-foreground text-center">
+                            Don&apos;t have an account?{' '}
+                            <a href="/signup" className="text-primary hover:underline">
+                                Create account
+                            </a>
+                        </p>
 
                         {searchParams?.message && (
                             <div className={`flex items-center gap-2 text-sm mt-2 p-3 rounded-md w-full border ${isSuccess
-                                    ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800'
-                                    : 'bg-destructive/10 text-destructive border-destructive/20'
+                                ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800'
+                                : 'bg-destructive/10 text-destructive border-destructive/20'
                                 }`}>
                                 {isSuccess ? (
                                     <CheckCircle className="w-4 h-4 flex-shrink-0" />

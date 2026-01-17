@@ -28,10 +28,20 @@ export interface Category {
     created_at: string
 }
 
+
+export interface Stylist {
+    id: string
+    name: string
+    color: string
+    active: boolean
+    created_at: string
+}
+
 export interface Appointment {
     id: string
     client_id: string
     service_id: string
+    stylist_id?: string
     master_name: string
     master_color: string
     date: string
@@ -50,6 +60,7 @@ export interface Appointment {
 export interface AppointmentWithDetails extends Appointment {
     client: { name: string } | null
     service: { name: string } | null
+    stylist?: { name: string, color: string } | null
 }
 
 export interface BusinessSettings {

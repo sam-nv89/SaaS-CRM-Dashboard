@@ -333,18 +333,238 @@ Dashboard теперь отображает реальные данные из S
 **Изменения:**
 - **Полная переработка визуализации:** Удалены все кастомные стили ("Glassmorphism", "Mesh Gradients"), которые не соответствовали дизайн-системе.
 - **Цветовая схема:** Все графики и элементы теперь строго используют CSS-переменные темы (`--primary`, `--chart-1`...`--chart-5`).
+2. **Синхронизирован стейт даты:**
+   - `currentDate` перенесён из локальных компонентов в `app/page.tsx`.
+   - Добавлены обработчики `handlePrevDay`, `handleNextDay`, `handleToday`.
+   - Обновлены интерфейсы `CalendarViewProps` и `MobileHeaderProps`.
+
+3. **Оживлена навигация по датам в Header:**
+   - Кнопки `ChevronLeft/Right` в `mobile-header.tsx` теперь вызывают `onPrevDay`/`onNextDay`.
+   - Дата в шапке синхронизирована с календарём.
+
+**Файлы изменены:**
+- `types/database.ts` — добавлен `AppointmentWithDetails`
+- `lib/db.ts` — добавлен `getAppointmentsWithDetails()`
+- `app/page.tsx` — рефакторинг: lifted state, фикс маппинга
+- `components/views/calendar-view.tsx` — рефакторинг: пропсы вместо локального стейта
+- `components/mobile-header.tsx` — рефакторинг: пропсы вместо локального стейта
+
+**Статус сборки:** ✅ Build successful
+
+**Коммит:** feat: fix appointments data mapping and sync date state
+
+---
+
+**Выполнено (Приоритет 2):**
+
+4. **Рассчёт `end_time` для записей:**
+   - Добавлена функция `calculateEndTime()` в `new-booking-dialog.tsx`.
+   - Поддерживает форматы: "45 min", "1h", "1.5h", "2h 30min", чистые числа.
+   - `end_time` теперь корректно вычисляется как `time + duration`.
+
+5. **Привязка создания записи к выбранной дате:**
+   - Добавлен проп `initialDate` в `NewBookingDialogProps`.
+   - Диалог теперь получает дату из календаря через `currentDate` из `page.tsx`.
+   - При открытии диалога дата обновляется через `useEffect`.
+
+**Файлы изменены:**
+- `components/dialogs/new-booking-dialog.tsx` — добавлены `calculateEndTime()`, `initialDate` prop
+- `app/page.tsx` — передаёт `currentDate` в диалог
+
+**Статус сборки:** ✅ Build successful
+
+**Коммит:** feat: calculate end_time and bind booking to selected date
+
+---
+
+## Фаза 3 ЗАВЕРШЕНА ✅
+
+Все критические проблемы исправлены. Следующий этап: Фаза 4 — оживление UI заглушек.
+
+---
+
+### Сессия: Фаза 4 — Оживление UI заглушек
+
+**Дата:** 2026-01-16
+**Автор:** Antigravity Agent
+
+**Выполнено:**
+
+1. **Кнопка "Add Service":**
+   - Создан `components/dialogs/add-service-dialog.tsx`
+   - Форма: название, категория (выбор + кастомная), цена, длительность
+   - Интеграция с `createService()` из Supabase
+   - Автоматическое добавление в список и раскрытие категории
+
+2. **Пункт меню "View Profile":**
+   - Создан `components/dialogs/client-profile-dialog.tsx`
+   - Отображает: контактные данные, заметки, статус клиента
+   - История последних 10 визитов с JOIN-запросом к services
+   - Цветовая индикация статусов записей
+
+3. **Кнопка Bell (уведомления):**
+   - Добавлен Popover с ScrollArea в `mobile-header.tsx`
+   - 3 примера уведомлений: новая запись, напоминание, отмена
+   - Кнопка "View all notifications"
+   - Анимированный индикатор непрочитанных
+
+4. **Загрузка логотипа:**
+   - Улучшен UI в `settings-view.tsx`
+   - Предпросмотр с FileReader и base64
+   - Валидация размера (макс. 5MB)
+   - Кнопка удаления с hover-эффектом
+
+5. **Режим "Week":**
+   - Полная реализация в `calendar-view.tsx`
+   - 7-дневная сетка с date-fns (startOfWeek, eachDayOfInterval)
+   - Мини-карточки записей (до 3 на день + "+N more")
+   - Выделение текущего дня и выбранной даты
+   - Кликабельные ячейки для навигации
+
+**Файлы созданы:**
+- `components/dialogs/add-service-dialog.tsx`
+- `components/dialogs/client-profile-dialog.tsx`
+
+**Файлы изменены:**
+- `components/views/services-view.tsx` — интеграция AddServiceDialog
+- `components/views/clients-view.tsx` — интеграция ClientProfileDialog
+- `components/mobile-header.tsx` — Popover notifications
+- `components/views/settings-view.tsx` — улучшенная загрузка логотипа
+- `components/views/calendar-view.tsx` — Week view mode
+
+**Статус сборки:** ✅ Build successful
+
+**Коммиты:**
+- `b122b7d` — feat: implement Add Service button and View Profile dialog
+- `ec89568` — feat: implement notifications bell popover with sample notifications
+- `2789c2e` — feat: complete Phase 4 - logo upload, week view, all UI stubs implemented
+
+---
+
+
+## Фаза 4 ЗАВЕРШЕНА ✅
+
+Все UI заглушки оживлены. Следующий этап: Фаза 5 — Dashboard с реальными данными.
+
+---
+
+### Сессия: Фаза 5 — Dashboard с реальными данными
+
+**Дата:** 2026-01-16
+**Автор:** Antigravity Agent
+
+**Выполнено:**
+
+1. **База данных и API:**
+   - В `lib/db.ts` добавлены функции для аналитики:
+     - `getDashboardStats`: KPI (выручка, средний чек, no-show rate)
+     - `getRevenueByPeriod`: данные для графика выручки (по часам/дням/неделям/месяцам)
+     - `getServiceBreakdown`: данные для Pie chart по категориям услуг
+     - `getPeakHours`: данные для Bar chart активности по часам
+     - `getStaffStatus`: статус сотрудников (busy/free/break) на основе текущих записей
+     - `getMasters`: получение списка мастеров для фильтрации
+
+2. **Интеграция UI:**
+   - Полностью переписан `dashboard-view.tsx` для работы с реальными данными
+   - Удалены все хардкод-заглушки данных
+   - Реализована загрузка данных через `Promise.all` для параллельного выполнения запросов
+   - Добавлено состояние загрузки и Skeleton-заглушки
+   - Подключена фильтрация по периодам (Today/Week/Month/Year)
+
+**Файлы изменены:**
+- `lib/db.ts` — добавлены функции аналитики
+- `components/views/dashboard-view.tsx` — интеграция реальных данных
+- `ROADMAP.md` — отмечена Фаза 5
+
+**Статус сборки:** ✅ Build successful
+
+---
+
+## Фаза 5 ЗАВЕРШЕНА ✅
+
+Dashboard теперь отображает реальные данные из Supabase. Следующий этап: Фаза 6 — Уведомления и аутентификация.
+
+---
+
+### Сессия: Полировка UI Dashboard
+
+**Дата:** 2026-01-16
+**Автор:** Antigravity Agent
+
+**Улучшения:**
+- **Визуальный стиль:** Внедрен "Glassmorphism" (backdrop-blur, полупрозрачные фоны) для карточек.
+- **Графики:**
+  - Добавлены градиентные заливки для Area и Bar charts.
+  - Скругленные углы у столбцов.
+  - Кастомные Tooltips с блюром и лучшей читаемостью.
+- **Layout:**
+  - Убраны лишние отступы, графики занимают всё полезное пространство.
+  - Оптимизирована сетка для мобильных устройств.
+  - Улучшена типографика (мелкие лейблы uppercase, крупные цифры).
+
+**Статус:** ✅ Build successful
+
+---
+
+### Сессия: Генератор тестовых данных
+
+**Дата:** 2026-01-17
+**Автор:** Antigravity Agent
+
+**Реализовано:**
+- **API Route:** `/api/seed-db` — генерирует 50 случайных записей на текущую неделю. Учитывает существующих клиентов и услуги. Статусы: confirmed (85%), cancelled/no_show (15%).
+- **UI:** В `SettingsView` добавлена вкладка `System` с кнопкой для запуска генерации данных из интерфейса.
+
+**Статус:** ✅ Готово к использованию
+
+---
+
+### Сессия: Редизайн Dashboard (Strict Theme)
+
+**Дата:** 2026-01-17
+**Автор:** Antigravity Agent
+
+**Изменения:**
+- **Полная переработка визуализации:** Удалены все кастомные стили ("Glassmorphism", "Mesh Gradients"), которые не соответствовали дизайн-системе.
+- **Цветовая схема:** Все графики и элементы теперь строго используют CSS-переменные темы (`--primary`, `--chart-1`...`--chart-5`).
 - **Чистота:** Dashboard приведен к стандартному виду shadcn/ui (плоские карточки, аккуратные бордеры, чистый фон).
 - **Графики:** Упрощены для лучшей читаемости данных.
 
 **Статус:** ✅ Соответствует макету темы
 
-## [2026-01-17] Phase 6: Authentication & Security
-- **Auth Infrastructure:** Installed \@supabase/ssr\, configured Middleware, created Login page.
-- **RLS Preparation:** Created SQL migration script \supabase/migrations/20260117_enable_rls.sql\.
-- **Roadmap:** Updated status for Phase 6 items.
+## [2026-01-17] Фаза 6: Аутентификация и Безопасность
+- **Инфраструктура Auth:** Установлен `@supabase/ssr`, настроен Middleware, создана страница входа.
+- **Подготовка RLS:** Создан SQL скрипт миграции `supabase/migrations/20260117_enable_rls.sql`.
+- **Roadmap:** Обновлен статус для задач Фазы 6.
 
+## [2026-01-17] Отладка Аутентификации
+- Выявлена причина ошибки входа: 'Email signups are disabled' (Регистрация по email отключена) в настройках проекта Supabase.
+- Подтверждено прямым API вызовом.
 
-## [2026-01-17] Debugging Auth
-- Identified root cause of auth failure: 'Email signups are disabled' in Supabase project configuration.
-- Verified via direct API call.
+---
 
+### Сессия: Управление Стилистами и Supabase MCP
+
+**Дата:** 2026-01-18
+**Автор:** Antigravity Agent
+
+**Выполнено:**
+
+1. **Управление Стилистами (Stylist Management):**
+   - **БД:** Создана таблица `stylists` и связь с `appointments`. Реализованы RLS политики.
+   - **Backend:** Добавлены CRUD функции в `lib/db.ts` (`getStylists` и др.).
+   - **Frontend:**
+     - В `NewBookingDialog` теперь динамически подгружаются стилисты из базы.
+     - В Настройки добавлена вкладка "Сотрудники" для управления списком.
+     - Добавлена возможность создавать новых клиентов прямо из диалога записи.
+
+2. **Интеграция Supabase MCP:**
+   - Настроено подключение агента к Supabase через MCP сервер.
+   - Проверена работа прямых SQL-запросов через чат.
+
+3. **Исправление ошибок (Bug Fixes):**
+   - **Fix "Failed to load services":** Диагностировано отсутствие таблицы `categories` в базе (хотя миграция была). Таблица воссоздана через MCP, заполнены дефолтные категории.
+   - **Fix Services RLS:** Обновлены политики безопасности для услуг, чтобы разрешить просмотр "старых" записей (где `user_id` IS NULL).
+   - Исправлены синтаксические ошибки в JSX при добавлении стилистов.
+
+**Статус:** ✅ Система записи полностью функциональна (Стилисты + Клиенты + Услуги). Ошибки загрузки устранены.

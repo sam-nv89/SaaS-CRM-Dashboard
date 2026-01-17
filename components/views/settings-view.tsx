@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Building2, Clock, Bell, Upload, Loader2, X, Image as ImageIcon, Database, User } from "lucide-react"
+import { Building2, Clock, Bell, Upload, Loader2, X, Image as ImageIcon, Database, User, Users, Plus, Check, Trash2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
-import { getSettings, updateSettings } from "@/lib/db"
+import { getSettings, updateSettings, getStylists, createStylist, deleteStylist } from "@/lib/db"
 import { supabase } from "@/lib/supabase"
-import type { BusinessHour, NotificationSettings } from "@/types/database"
+import type { BusinessHour, NotificationSettings, Stylist } from "@/types/database"
 
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
@@ -42,6 +42,11 @@ export function SettingsView() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSeeding, setIsSeeding] = useState(false)
 
+  // Stylist state
+  const [stylists, setStylists] = useState<Stylist[]>([])
+  const [isAddingStylist, setIsAddingStylist] = useState(false)
+  const [newStylistName, setNewStylistName] = useState("")
+
   // Profile state
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
@@ -53,7 +58,49 @@ export function SettingsView() {
   useEffect(() => {
     loadSettings()
     loadProfile()
+    loadStylists()
   }, [])
+
+  const loadStylists = async () => {
+    try {
+      const data = await getStylists()
+      setStylists(data)
+    } catch (error) {
+      console.error("Error loading stylists:", error)
+    }
+  }
+
+  const handleCreateStylist = async () => {
+    if (!newStylistName.trim()) return
+    try {
+      // Pick a random color from charts
+      const colors = ['bg-chart-1', 'bg-chart-2', 'bg-chart-3', 'bg-chart-4', 'bg-chart-5']
+      const color = colors[Math.floor(Math.random() * colors.length)]
+
+      await createStylist({
+        name: newStylistName.trim(),
+        color
+      })
+      setNewStylistName("")
+      setIsAddingStylist(false)
+      loadStylists()
+      toast.success("Stylist added")
+    } catch (error) {
+      console.error(error)
+      toast.error("Failed to add stylist")
+    }
+  }
+
+  const handleDeleteStylist = async (id: string) => {
+    try {
+      await deleteStylist(id)
+      loadStylists()
+      toast.success("Stylist removed")
+    } catch (error) {
+      console.error(error)
+      toast.error("Failed to remove stylist")
+    }
+  }
 
   const loadProfile = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -206,7 +253,7 @@ export function SettingsView() {
   return (
     <div className="space-y-4">
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="w-full grid grid-cols-4 bg-secondary">
+        <TabsList className="w-full grid grid-cols-5 bg-secondary">
           <TabsTrigger value="general" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm">
             General
           </TabsTrigger>
@@ -218,6 +265,12 @@ export function SettingsView() {
             className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm"
           >
             Alerts
+          </TabsTrigger>
+          <TabsTrigger
+            value="stylists"
+            className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm"
+          >
+            Staff
           </TabsTrigger>
           <TabsTrigger
             value="system"
@@ -422,6 +475,74 @@ export function SettingsView() {
               "Save Changes"
             )}
           </Button>
+        </TabsContent>
+
+        {/* Stylists Tab */}
+        <TabsContent value="stylists" className="mt-4 space-y-4">
+          <Card className="border-border bg-card shadow-sm">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" />
+                Staff (Stylists)
+              </CardTitle>
+              {!isAddingStylist && (
+                <Button size="sm" onClick={() => setIsAddingStylist(true)}>
+                  <Plus className="h-3 w-3 mr-1" /> Add
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isAddingStylist && (
+                <div className="flex flex-col gap-3 p-3 bg-secondary/20 rounded-lg border border-border">
+                  <Label className="text-sm">New Stylist Name</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newStylistName}
+                      onChange={(e) => setNewStylistName(e.target.value)}
+                      placeholder="e.g. Alice"
+                      className="h-9"
+                      autoFocus
+                    />
+                    <Button size="sm" onClick={handleCreateStylist} disabled={!newStylistName.trim()}>
+                      <Check className="h-4 w-4" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => {
+                      setIsAddingStylist(false)
+                      setNewStylistName("")
+                    }}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {stylists.map(stylist => (
+                  <div key={stylist.id} className="flex items-center justify-between p-2 hover:bg-secondary/30 rounded-lg transition-colors border border-transparent hover:border-border">
+                    <div className="flex items-center gap-3">
+                      <div className={`h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${stylist.color}`}>
+                        {stylist.name[0]}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{stylist.name}</span>
+                      </div>
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => handleDeleteStylist(stylist.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                {stylists.length === 0 && !isAddingStylist && (
+                  <p className="text-center text-muted-foreground text-sm py-4">No staff members yet</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Business Hours Tab */}

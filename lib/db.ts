@@ -10,7 +10,9 @@ import type {
     AppointmentInsert,
     AppointmentUpdate,
     AppointmentWithDetails,
-    BusinessSettings
+    BusinessSettings,
+    Category,
+    Stylist
 } from '@/types/database'
 
 // ============ CLIENTS ============
@@ -114,9 +116,6 @@ export async function deleteService(id: string): Promise<void> {
     if (error) throw error
 }
 
-import type { Category } from "@/types/database"
-
-// ... (other imports)
 
 // ============ CATEGORIES ============
 
@@ -182,6 +181,46 @@ export async function deleteCategory(categoryName: string): Promise<void> {
     if (error) throw error
 }
 
+// ============ STYLISTS ============
+
+export async function getStylists(): Promise<Stylist[]> {
+    const { data, error } = await supabase
+        .from('stylists')
+        .select('*')
+        .order('name')
+    if (error) throw error
+    return data || []
+}
+
+export async function createStylist(stylist: { name: string, color: string }): Promise<Stylist> {
+    const { data, error } = await supabase
+        .from('stylists')
+        .insert(stylist)
+        .select()
+        .single()
+    if (error) throw error
+    return data
+}
+
+export async function updateStylist(id: string, updates: Partial<Stylist>): Promise<Stylist> {
+    const { data, error } = await supabase
+        .from('stylists')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+    if (error) throw error
+    return data
+}
+
+export async function deleteStylist(id: string): Promise<void> {
+    const { error } = await supabase
+        .from('stylists')
+        .delete()
+        .eq('id', id)
+    if (error) throw error
+}
+
 // ============ APPOINTMENTS ============
 
 /**
@@ -194,7 +233,8 @@ export async function getAppointmentsWithDetails(date?: string): Promise<Appoint
         .select(`
             *,
             client:clients(name),
-            service:services(name)
+            service:services(name),
+            stylist:stylists(name, color)
         `)
         .order('date', { ascending: true })
         .order('time', { ascending: true })

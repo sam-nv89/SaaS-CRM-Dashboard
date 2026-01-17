@@ -13,6 +13,8 @@ import { getServices, updateService, renameCategory, deleteCategory } from "@/li
 import type { Service } from "@/types/database"
 import { toast } from "sonner"
 
+const DEFAULT_CATEGORIES = ["Hair", "Nail", "Skin", "Massage", "Makeup", "Other"]
+
 interface ServiceCategory {
   id: string
   name: string
@@ -238,55 +240,67 @@ export function ServicesView() {
                 </Button>
               )}
 
-              {/* Existing categories */}
-              {categories.map((category) => (
-                <div key={category.id} className="flex items-center gap-2">
-                  {editingCategoryId === category.id ? (
-                    <>
-                      <Input
-                        value={editingCategoryName}
-                        onChange={(e) => setEditingCategoryName(e.target.value)}
-                        className="h-8 flex-1"
-                        autoFocus
-                        onKeyDown={(e) => e.key === 'Enter' && handleRenameCategory(category)}
-                      />
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleRenameCategory(category)}>
-                        <Check className="h-4 w-4 text-green-600" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingCategoryId(null)}>
-                        <X className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <span className="flex-1 text-sm">{category.name}</span>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        onClick={() => {
-                          setEditingCategoryId(category.id)
-                          setEditingCategoryName(category.name)
-                        }}
-                      >
-                        <Edit2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        onClick={() => handleDeleteCategory(category)}
-                        disabled={category.name === 'Other'}
-                      >
-                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      </Button>
-                    </>
-                  )}
-                </div>
-              ))}
-              {categories.length === 0 && !isAddingCategory && (
-                <p className="text-sm text-muted-foreground text-center py-2">No categories yet</p>
-              )}
+              {/* All categories - merged DEFAULT + existing */}
+              {(() => {
+                // Combine DEFAULT_CATEGORIES with existing, remove duplicates
+                const existingNames = categories.map(c => c.name)
+                const allCategoryNames = [...new Set([...DEFAULT_CATEGORIES, ...existingNames])]
+                return allCategoryNames.map((catName) => {
+                  const existingCat = categories.find(c => c.name === catName)
+                  const catId = catName.toLowerCase().replace(/\s+/g, '-')
+                  return (
+                    <div key={catId} className="flex items-center gap-2">
+                      {editingCategoryId === catId ? (
+                        <>
+                          <Input
+                            value={editingCategoryName}
+                            onChange={(e) => setEditingCategoryName(e.target.value)}
+                            className="h-8 flex-1"
+                            autoFocus
+                            onKeyDown={(e) => e.key === 'Enter' && existingCat && handleRenameCategory(existingCat)}
+                          />
+                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => existingCat && handleRenameCategory(existingCat)}>
+                            <Check className="h-4 w-4 text-green-600" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingCategoryId(null)}>
+                            <X className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <span className={`flex-1 text-sm ${!existingCat ? 'text-muted-foreground' : ''}`}>
+                            {catName}
+                          </span>
+                          {existingCat && (
+                            <>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                                onClick={() => {
+                                  setEditingCategoryId(catId)
+                                  setEditingCategoryName(catName)
+                                }}
+                              >
+                                <Edit2 className="h-3.5 w-3.5 text-muted-foreground" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                                onClick={() => handleDeleteCategory(existingCat)}
+                                disabled={catName === 'Other'}
+                              >
+                                <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                              </Button>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )
+                })
+              })()}
             </CardContent>
           </Card>
         </CollapsibleContent>

@@ -41,10 +41,65 @@ export function SettingsView() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSeeding, setIsSeeding] = useState(false)
 
-  // Load settings from Supabase on mount
+  // Profile state
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
+  const [company, setCompany] = useState("")
+  const [userEmail, setUserEmail] = useState("")
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
+
+  // Load settings and profile from Supabase on mount
   useEffect(() => {
     loadSettings()
+    loadProfile()
   }, [])
+
+  const loadProfile = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      setFirstName(user.user_metadata?.first_name || '')
+      setLastName(user.user_metadata?.last_name || '')
+      setCompany(user.user_metadata?.company || '')
+      setUserEmail(user.email || '')
+    }
+  }
+
+  const handleSaveProfile = async () => {
+    setIsSavingProfile(true)
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+          company: company,
+          full_name: `${firstName} ${lastName}`,
+        }
+      })
+
+      if (error) throw error
+
+      // Also update profiles table
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          first_name: firstName,
+          last_name: lastName,
+          company: company,
+          email: userEmail,
+        })
+      }
+
+      toast.success("Profile updated!", {
+        description: "Your profile has been saved.",
+      })
+    } catch (error) {
+      console.error('Error saving profile:', error)
+      toast.error("Failed to save profile")
+    } finally {
+      setIsSavingProfile(false)
+    }
+  }
 
   const loadSettings = async () => {
     try {
@@ -148,6 +203,70 @@ export function SettingsView() {
 
         {/* General Tab */}
         <TabsContent value="general" className="mt-4 space-y-4">
+          {/* Profile Card */}
+          <Card className="border-border bg-card shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <User className="h-4 w-4 text-primary" />
+                Your Profile
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName" className="text-sm">First Name</Label>
+                  <Input
+                    id="firstName"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="h-11"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName" className="text-sm">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="h-11"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="company" className="text-sm">Company</Label>
+                <Input
+                  id="company"
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  className="h-11"
+                  placeholder="Optional"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">Email</Label>
+                <Input
+                  value={userEmail}
+                  disabled
+                  className="h-11 bg-muted"
+                />
+              </div>
+              <Button
+                onClick={handleSaveProfile}
+                disabled={isSavingProfile}
+                className="w-full"
+              >
+                {isSavingProfile ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Profile"
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
           <Card className="border-border bg-card shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">

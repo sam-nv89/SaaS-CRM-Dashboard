@@ -72,9 +72,9 @@ export default function BeautyFlowApp() {
         serviceId: apt.service_id, // Map service_id
         duration: apt.duration,
         status: apt.status,
-        master: apt.master_name,
+        master: apt.stylist?.name || apt.master_name,
         stylistId: apt.stylist_id, // Map stylist_id
-        masterColor: apt.master_color,
+        masterColor: apt.stylist?.color || apt.master_color,
       }))
 
       setAppointments(uiAppointments)

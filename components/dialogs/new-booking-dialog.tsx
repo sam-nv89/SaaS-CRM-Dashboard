@@ -9,7 +9,12 @@ import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import { getClients, getServices, createAppointment, getStylists, createClient, getCategories } from "@/lib/db"
+import {
+  getClients, getServices, createAppointment, createService,
+  createStylist,
+  checkAvailability,
+  getCategories,
+} from "@/lib/db"
 import type { Client, Service, AppointmentInsert, Stylist } from "@/types/database"
 import type { Appointment } from "@/app/page"
 import { ClientSheet } from "@/components/dialogs/client-sheet"
@@ -190,6 +195,22 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
       const endTime = calculateEndTime(selectedTime, selectedService.duration)
 
       // Create appointment in Supabase
+      // 4. Validate Availability
+      if (selectedStylist.id) {
+        const isAvailable = await checkAvailability(
+          selectedStylist.id,
+          format(date, "yyyy-MM-dd"),
+          selectedTime,
+          endTime
+        )
+
+        if (!isAvailable) {
+          toast.error("This stylist is already booked for this time.")
+          setIsLoading(false)
+          return
+        }
+      }
+
       const dbAppointment: AppointmentInsert = {
         client_id: selectedClient.id,
         service_id: selectedService.id,
@@ -198,7 +219,7 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
         // Removing service_name/client_name as they are likely not in schema
         master_name: selectedStylist.name,
         master_color: selectedStylist.color,
-        date: date.toISOString().split("T")[0],
+        date: format(date, "yyyy-MM-dd"),
         time: selectedTime,
         end_time: endTime,
         duration: selectedService.duration,

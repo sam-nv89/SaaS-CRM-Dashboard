@@ -674,3 +674,33 @@ export async function getMasters(): Promise<string[]> {
 
     return ['All Masters', ...Array.from(mastersSet)]
 }
+
+/**
+ * Check if a stylist is available at a given time
+ */
+export async function checkAvailability(
+    stylistId: string,
+    date: string,
+    startTime: string,
+    endTime: string,
+    excludeAppointmentId?: string
+): Promise<boolean> {
+    const { data, error } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('stylist_id', stylistId)
+        .eq('date', date)
+        .in('status', ['confirmed', 'pending']) // Check confirmed and pending
+        .neq('id', excludeAppointmentId || '') // Exclude current appointment if updating
+        // Logic: (StartTime < ExistingEndTime) AND (EndTime > ExistingStartTime)
+        .lt('time', endTime)
+        .gt('end_time', startTime)
+
+    if (error) {
+        console.error('Validation error:', error)
+        throw error
+    }
+
+    // If we found any conflicting appointment -> not available
+    return data === null || data.length === 0
+}

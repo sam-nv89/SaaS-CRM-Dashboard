@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import { getServices, getStylists, updateAppointment, deleteAppointment } from "@/lib/db"
+import {
+    deleteAppointment,
+    updateAppointment,
+    getServices,
+    getStylists,
+    checkAvailability,
+} from "@/lib/db"
 import type { Service, Stylist, AppointmentUpdate } from "@/types/database"
 import type { Appointment } from "@/app/page"
 import { Calendar } from "@/components/ui/calendar"
@@ -100,12 +106,58 @@ export function EditBookingDialog({ open, onOpenChange, onAppointmentUpdated, ap
             if (!selectedService) throw new Error("Service not found")
 
             // Calculate new end time
-            // Reuse logic from NewBookingDialog or minimal version here
-            // For editing, usually simple update is enough.
+            const duration = selectedService.duration
+            // Helper to calculation end time
+            const calculateEndTime = (startTime: string, duration: string) => {
+                const [hours, minutes] = startTime.split(':').map(Number)
+
+                // Parse duration
+                let durationMinutes = 0
+                if (duration.includes('h')) {
+                    const parts = duration.split('h')
+                    durationMinutes += parseInt(parts[0]) * 60
+                    if (parts[1] && parts[1].includes('min')) {
+                        durationMinutes += parseInt(parts[1])
+                    }
+                } else {
+                    durationMinutes = parseInt(duration)
+                }
+
+                const totalMinutes = hours * 60 + minutes + durationMinutes
+                const endHours = Math.floor(totalMinutes / 60) % 24
+                const endMinutes = totalMinutes % 60
+                return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`
+            }
+
+            const endTime = calculateEndTime(selectedTime, duration)
+
+            // Validate Availability
+            if (selectedStylistId) {
+                try {
+                    const isAvailable = await checkAvailability(
+                        selectedStylistId,
+                        format(date, "yyyy-MM-dd"),
+                        selectedTime,
+                        endTime,
+                        appointment.id // Exclude current appointment
+                    )
+
+                    if (!isAvailable) {
+                        toast.error("This stylist is already booked for this time.")
+                        setIsLoading(false)
+                        return
+                    }
+                } catch (error) {
+                    console.error("Validation failed", error)
+                    toast.error("Failed to validate availability")
+                    setIsLoading(false)
+                    return
+                }
+            }
 
             const dbAppointment: AppointmentUpdate = {
                 id: appointment.id,
-                date: date.toISOString().split("T")[0],
+                date: format(date, "yyyy-MM-dd"),
                 time: selectedTime,
                 status: status as any,
                 service_id: selectedServiceId,

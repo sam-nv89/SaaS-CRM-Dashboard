@@ -605,9 +605,14 @@ export async function getStaffStatus(): Promise<StaffStatusItem[]> {
     const now = new Date()
     const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
 
+    // 1. Get all active stylists (Source of Truth)
+    const activeStylists = await getStylists().then(data => data.filter(s => s.active))
+
+    // 2. Get today's appointments for these stylists
     const { data: appointments, error } = await supabase
         .from('appointments')
         .select(`
+            stylist_id,
             master_name,
             time,
             end_time,
@@ -620,21 +625,25 @@ export async function getStaffStatus(): Promise<StaffStatusItem[]> {
 
     if (error) throw error
 
-    // Get unique masters
-    const masterSet = new Set<string>()
-        ; (appointments || []).forEach((apt: { master_name: string }) => masterSet.add(apt.master_name))
-
-    // Determine status for each master
-    return Array.from(masterSet).map(masterName => {
-        const currentAppointment = (appointments || []).find((apt: { master_name: string; time: string; end_time: string }) =>
-            apt.master_name === masterName &&
-            apt.time <= currentTime &&
-            apt.end_time > currentTime
-        ) as { client: { name: string } | null; service: { name: string } | null } | undefined
+    // 3. Map each stylist to their current status
+    return activeStylists.map(stylist => {
+        // Find if this stylist has an active appointment RIGHT NOW
+        const currentAppointment = (appointments || []).find((apt: any) => {
+            // Priority: Match by stylist_id
+            if (apt.stylist_id === stylist.id) {
+                return apt.time <= currentTime && apt.end_time > currentTime
+            }
+            // Fallback: Match by name (legacy support)
+            // Only if stylist_id is null/missing in appointment
+            if (!apt.stylist_id && apt.master_name === stylist.name) {
+                return apt.time <= currentTime && apt.end_time > currentTime
+            }
+            return false
+        }) as any
 
         if (currentAppointment) {
             return {
-                name: masterName,
+                name: stylist.name,
                 status: 'busy' as const,
                 client: currentAppointment.client?.name || null,
                 service: currentAppointment.service?.name || null,
@@ -642,7 +651,7 @@ export async function getStaffStatus(): Promise<StaffStatusItem[]> {
         }
 
         return {
-            name: masterName,
+            name: stylist.name,
             status: 'free' as const,
             client: null,
             service: null,

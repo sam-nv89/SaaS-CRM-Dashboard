@@ -18,8 +18,8 @@ export default async function LoginPage(props: {
                     <div className="bg-primary/10 p-3 rounded-full mb-2">
                         <Lock className="w-6 h-6 text-primary" />
                     </div>
-                    <CardTitle className="text-2xl font-bold">Добро пожаловать</CardTitle>
-                    <CardDescription>Войдите или создайте аккаунт</CardDescription>
+                    <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
+                    <CardDescription>Sign in or create an account</CardDescription>
                 </CardHeader>
                 <form>
                     <CardContent className="space-y-5 pb-8">
@@ -31,27 +31,29 @@ export default async function LoginPage(props: {
                                 type="email"
                                 placeholder="name@example.com"
                                 required
+                                autoComplete="email"
                                 className="bg-background"
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="password">Пароль</Label>
+                            <Label htmlFor="password">Password</Label>
                             <Input
                                 id="password"
                                 name="password"
                                 type="password"
                                 required
                                 minLength={6}
+                                autoComplete="current-password"
                                 className="bg-background"
                             />
                         </div>
                     </CardContent>
                     <CardFooter className="flex flex-col gap-3 bg-muted/20 pt-6 pb-8 border-t">
                         <Button formAction={login} className="w-full shadow-sm hover:shadow-md transition-all">
-                            Войти
+                            Sign In
                         </Button>
                         <Button formAction={signup} variant="outline" className="w-full bg-background">
-                            Создать аккаунт
+                            Create account
                         </Button>
 
                         {searchParams?.message && (

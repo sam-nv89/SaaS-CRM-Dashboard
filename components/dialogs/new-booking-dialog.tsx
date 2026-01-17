@@ -201,6 +201,7 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
         date: date.toISOString().split("T")[0],
         time: selectedTime,
         end_time: endTime,
+        duration: selectedService.duration,
         status: "confirmed",
       }
 
@@ -212,9 +213,10 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
       toast.success("Appointment booked!", {
         description: `${selectedClient.name} - ${selectedService.name} at ${selectedTime}`,
       })
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating appointment:', error)
-      toast.error('Failed to create appointment')
+      const msg = error?.message || "Unknown error"
+      toast.error(`Failed to create appointment: ${msg}`)
     } finally {
       setIsLoading(false)
     }

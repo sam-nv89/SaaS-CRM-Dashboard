@@ -114,6 +114,46 @@ export async function deleteService(id: string): Promise<void> {
     if (error) throw error
 }
 
+// ============ CATEGORIES ============
+
+/**
+ * Get unique categories from services
+ */
+export async function getCategories(): Promise<string[]> {
+    const { data, error } = await supabase
+        .from('services')
+        .select('category')
+
+    if (error) throw error
+
+    const categories = [...new Set(data?.map(s => s.category).filter(Boolean) as string[])]
+    return categories.sort()
+}
+
+/**
+ * Rename a category (updates all services with that category)
+ */
+export async function renameCategory(oldName: string, newName: string): Promise<void> {
+    const { error } = await supabase
+        .from('services')
+        .update({ category: newName })
+        .eq('category', oldName)
+
+    if (error) throw error
+}
+
+/**
+ * Delete a category (moves services to 'Other')
+ */
+export async function deleteCategory(categoryName: string): Promise<void> {
+    const { error } = await supabase
+        .from('services')
+        .update({ category: 'Other' })
+        .eq('category', categoryName)
+
+    if (error) throw error
+}
+
 // ============ APPOINTMENTS ============
 
 /**

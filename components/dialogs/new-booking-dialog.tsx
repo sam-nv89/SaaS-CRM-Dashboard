@@ -55,6 +55,7 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
   const [selectedStylist, setSelectedStylist] = useState<Stylist | null>(null)
   const [selectedTime, setSelectedTime] = useState<string>("")
   const [date, setDate] = useState<Date | undefined>(undefined)
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false)
 
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingData, setIsLoadingData] = useState(true)
@@ -410,7 +411,7 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
                     {/* Date Selection */}
                     <div className="space-y-2">
                       <Label className="text-sm font-medium text-muted-foreground">Date</Label>
-                      <Popover>
+                      <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                         <PopoverTrigger asChild>
                           <Button
                             variant={"outline"}
@@ -427,7 +428,11 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
                           <Calendar
                             mode="single"
                             selected={date}
-                            onSelect={setDate}
+                            onSelect={(newDate) => {
+                              setDate(newDate)
+                              setIsCalendarOpen(false) // Close on select
+                            }}
+                            weekStartsOn={1} // Monday
                             initialFocus
                           />
                         </PopoverContent>

@@ -769,39 +769,40 @@ export async function getAvailableTimeSlots(
     serviceDurationMinutes: number,
     excludeAppointmentId?: string
 ): Promise<string[]> {
-    // 1. Get Business Hours
-    const settings = await getSettings()
-    console.warn('[DEBUG] getAvailableTimeSlots: Settings:', settings?.business_hours)
+    // 1. Get Business Hours (with robust error handling)
+    let settings: BusinessSettings | null = null
+    try {
+        settings = await getSettings()
+    } catch (e) {
+        console.warn('[DEBUG] getAvailableTimeSlots: Failed to fetch settings, using defaults.', e)
+    }
+    console.warn('[DEBUG] getAvailableTimeSlots: Settings business_hours:', settings?.business_hours)
 
     let schedule: BusinessHour | undefined
 
     // Format date to Day name (e.g. "Monday")
     const dayName = format(date, 'EEEE')
-    console.warn('[DEBUG] Checking availability for:', dayName, date)
+    console.warn('[DEBUG] Checking availability for:', dayName, format(date, 'yyyy-MM-dd'))
 
-    if (!settings || !settings.business_hours || !Array.isArray(settings.business_hours)) {
-        console.warn('[DEBUG] No business hours settings found. Using DEFAULT (09:00 - 21:00).')
-        // Fallback default schedule
-        schedule = {
-            day: dayName,
-            open: '09:00',
-            close: '21:00',
-            is_open: true
-        }
+    // Default schedule if no settings or business_hours found
+    const defaultSchedule: BusinessHour = {
+        day: dayName,
+        open: '09:00',
+        close: '21:00',
+        is_open: true
+    }
+
+    if (!settings || !settings.business_hours || !Array.isArray(settings.business_hours) || settings.business_hours.length === 0) {
+        console.warn('[DEBUG] No valid business hours settings. Using DEFAULT (09:00 - 21:00).')
+        schedule = defaultSchedule
     } else {
         // Find schedule case-insensitively
         schedule = (settings.business_hours as BusinessHour[]).find(
-            h => h.day.toLowerCase() === dayName.toLowerCase()
+            h => h.day && h.day.toLowerCase() === dayName.toLowerCase()
         )
-    }
-
-    if (!schedule) {
-        console.warn(`[DEBUG] No schedule found for ${dayName}. Using DEFAULT (09:00 - 21:00)`)
-        schedule = {
-            day: dayName,
-            open: '09:00',
-            close: '21:00',
-            is_open: true
+        if (!schedule) {
+            console.warn(`[DEBUG] No schedule found for ${dayName}. Using DEFAULT (09:00 - 21:00)`)
+            schedule = defaultSchedule
         }
     }
 

@@ -50,6 +50,7 @@ export function EditBookingDialog({ open, onOpenChange, onAppointmentUpdated, ap
     const [selectedServiceId, setSelectedServiceId] = useState<string>("")
     const [selectedStylistId, setSelectedStylistId] = useState<string>("")
     const [status, setStatus] = useState<string>("confirmed")
+    const [isCalendarOpen, setIsCalendarOpen] = useState(false)
 
     const [isLoading, setIsLoading] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
@@ -306,7 +307,7 @@ export function EditBookingDialog({ open, onOpenChange, onAppointmentUpdated, ap
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label className="text-sm text-muted-foreground">Date</Label>
-                            <Popover>
+                            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                                 <PopoverTrigger asChild>
                                     <Button variant={"outline"} className="w-full justify-start text-left font-normal h-10">
                                         <CalendarIcon className="mr-2 h-4 w-4" />
@@ -314,7 +315,16 @@ export function EditBookingDialog({ open, onOpenChange, onAppointmentUpdated, ap
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0">
-                                    <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
+                                    <Calendar
+                                        mode="single"
+                                        selected={date}
+                                        onSelect={(newDate) => {
+                                            setDate(newDate)
+                                            setIsCalendarOpen(false)
+                                        }}
+                                        weekStartsOn={1}
+                                        initialFocus
+                                    />
                                 </PopoverContent>
                             </Popover>
                         </div>

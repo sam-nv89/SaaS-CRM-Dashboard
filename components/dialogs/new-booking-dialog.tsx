@@ -265,6 +265,10 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
       // Create appointment for first service (primary), notes include all services
       const primaryService = selectedServices[0]
       const allServiceNames = selectedServices.map(s => s.name).join(', ')
+      // Store service IDs as JSON prefix for retrieval in edit dialog
+      const serviceIdsJson = JSON.stringify(selectedServices.map(s => s.id))
+      const notesPrefix = `__SERVICE_IDS__:${serviceIdsJson}\n`
+      const userNotes = selectedServices.length > 1 ? `Services: ${allServiceNames}` : ''
 
       const dbAppointment: AppointmentInsert = {
         client_id: selectedClient.id,
@@ -277,7 +281,7 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
         end_time: endTime,
         duration: `${totalDuration} min`,
         status: "confirmed",
-        notes: selectedServices.length > 1 ? `Services: ${allServiceNames}` : undefined,
+        notes: notesPrefix + userNotes,
       }
 
       await createAppointment(dbAppointment)
@@ -352,7 +356,8 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
                           key={client.id}
                           onClick={() => {
                             setSelectedClient(client)
-                            setStep(2) // Auto-advance to next step
+                            // Delayed transition for smooth visual feedback
+                            setTimeout(() => setStep(2), 200)
                           }}
                           className={cn(
                             "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",

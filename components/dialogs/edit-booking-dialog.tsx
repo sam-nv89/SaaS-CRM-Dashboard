@@ -47,7 +47,7 @@ export function EditBookingDialog({ open, onOpenChange, onAppointmentUpdated, ap
 
     const [date, setDate] = useState<Date | undefined>(undefined)
     const [selectedTime, setSelectedTime] = useState<string>("")
-    const [selectedServiceId, setSelectedServiceId] = useState<string>("")
+    const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([])
     const [selectedStylistId, setSelectedStylistId] = useState<string>("")
     const [status, setStatus] = useState<string>("confirmed")
     const [isCalendarOpen, setIsCalendarOpen] = useState(false)
@@ -60,28 +60,32 @@ export function EditBookingDialog({ open, onOpenChange, onAppointmentUpdated, ap
     // Load available slots
     useEffect(() => {
         const fetchSlots = async () => {
-            if (date && selectedStylistId && selectedServiceId) {
+            if (date && selectedStylistId && selectedServiceIds.length > 0) {
                 const { getAvailableTimeSlots } = await import("@/lib/db")
-                const selectedService = services.find(s => s.id === selectedServiceId)
-                let durationMin = 60
-
-                if (selectedService) {
-                    const dur = selectedService.duration.toLowerCase()
-                    if (dur.includes('min') && !dur.includes('h')) {
-                        const matches = dur.match(/(\d+)/)
-                        if (matches) durationMin = parseInt(matches[0])
-                    } else if (dur.includes('h')) {
-                        if (dur.includes('.')) durationMin = parseFloat(dur) * 60
-                        else durationMin = parseInt(dur) * 60
+                // Calculate total duration from all selected services
+                let totalDurationMin = 0
+                for (const svcId of selectedServiceIds) {
+                    const svc = services.find(s => s.id === svcId)
+                    if (svc) {
+                        const dur = svc.duration.toLowerCase()
+                        if (dur.includes('min') && !dur.includes('h')) {
+                            const matches = dur.match(/(\d+)/)
+                            if (matches) totalDurationMin += parseInt(matches[0])
+                        } else if (dur.includes('h')) {
+                            if (dur.includes('.')) totalDurationMin += parseFloat(dur) * 60
+                            else totalDurationMin += parseInt(dur) * 60
+                        } else {
+                            totalDurationMin += 60
+                        }
                     }
                 }
 
-                const slots = await getAvailableTimeSlots(selectedStylistId, date, durationMin, appointment?.id)
+                const slots = await getAvailableTimeSlots(selectedStylistId, date, totalDurationMin, appointment?.id)
                 setAvailableSlots(slots)
             }
         }
         fetchSlots()
-    }, [date, selectedStylistId, selectedServiceId, services, appointment])
+    }, [date, selectedStylistId, selectedServiceIds, services, appointment])
 
     useEffect(() => {
         if (open) {
@@ -91,17 +95,27 @@ export function EditBookingDialog({ open, onOpenChange, onAppointmentUpdated, ap
                 setDate(parseISO(appointment.date))
                 setSelectedTime(appointment.time)
                 setStatus(appointment.status)
-                // Note: appointment prop from CalendarView currently doesn't have IDs for service/stylist? 
-                // Need to check Appointment interface in page.tsx vs AppointmentWithDetails in db.ts
-                // The Appointment interface in page.tsx lacks service_id and stylist_id.
-                // We might need to refactor passing data or duplicate logic.
-                // For now, I'll rely on matching names if needed, but ideally I should pass IDs.
-                // Wait, CalendarView receives Appointment[], which comes from loadAppointments in page.tsx
-                // uiAppointments in page.tsx currently maps from DB but MISSES IDs.
-                // I need to update page.tsx to include IDs first. 
-                // Assuming page.tsx is updated (I will do that next), I can access IDs.
-                if ((appointment as any).serviceId) setSelectedServiceId((appointment as any).serviceId)
+
+                // Parse service IDs from notes JSON prefix if exists
+                const notes = (appointment as any).notes || ''
+                const serviceIdsMatch = notes.match(/__SERVICE_IDS__:([\[\]"\w,-]+)/)
+                if (serviceIdsMatch) {
+                    try {
+                        const ids = JSON.parse(serviceIdsMatch[1])
+                        setSelectedServiceIds(ids)
+                    } catch {
+                        // Fallback to single service
+                        if ((appointment as any).serviceId) setSelectedServiceIds([(appointment as any).serviceId])
+                        else if ((appointment as any).service_id) setSelectedServiceIds([(appointment as any).service_id])
+                    }
+                } else {
+                    // Legacy: single service
+                    if ((appointment as any).serviceId) setSelectedServiceIds([(appointment as any).serviceId])
+                    else if ((appointment as any).service_id) setSelectedServiceIds([(appointment as any).service_id])
+                }
+
                 if ((appointment as any).stylistId) setSelectedStylistId((appointment as any).stylistId)
+                else if ((appointment as any).stylist_id) setSelectedStylistId((appointment as any).stylist_id)
             }
         }
     }, [open, appointment])
@@ -125,40 +139,38 @@ export function EditBookingDialog({ open, onOpenChange, onAppointmentUpdated, ap
     }
 
     const handleSave = async () => {
-        if (!appointment || !date || !selectedTime || !selectedServiceId || !selectedStylistId) return
+        if (!appointment || !date || !selectedTime || selectedServiceIds.length === 0 || !selectedStylistId) return
 
         setIsLoading(true)
         try {
-            const selectedService = services.find(s => s.id === selectedServiceId)
+            const primaryService = services.find(s => s.id === selectedServiceIds[0])
             const selectedStylist = stylists.find(s => s.id === selectedStylistId)
 
-            if (!selectedService) throw new Error("Service not found")
+            if (!primaryService) throw new Error("Service not found")
+
+            // Calculate total duration from all selected services
+            let totalDurationMin = 0
+            for (const svcId of selectedServiceIds) {
+                const svc = services.find(s => s.id === svcId)
+                if (svc) {
+                    const dur = svc.duration.toLowerCase()
+                    const hourMatch = dur.match(/(\d+(?:\.\d+)?)\s*h/)
+                    const minMatch = dur.match(/(\d+)\s*min/)
+                    if (hourMatch) totalDurationMin += parseFloat(hourMatch[1]) * 60
+                    if (minMatch) totalDurationMin += parseInt(minMatch[1], 10)
+                    if (!hourMatch && !minMatch) totalDurationMin += parseInt(dur, 10) || 60
+                }
+            }
 
             // Calculate new end time
-            const duration = selectedService.duration
-            // Helper to calculation end time
-            const calculateEndTime = (startTime: string, duration: string) => {
+            const calculateEndTime = (startTime: string, durationMins: number) => {
                 const [hours, minutes] = startTime.split(':').map(Number)
-
-                // Parse duration
-                let durationMinutes = 0
-                if (duration.includes('h')) {
-                    const parts = duration.split('h')
-                    durationMinutes += parseInt(parts[0]) * 60
-                    if (parts[1] && parts[1].includes('min')) {
-                        durationMinutes += parseInt(parts[1])
-                    }
-                } else {
-                    durationMinutes = parseInt(duration)
-                }
-
-                const totalMinutes = hours * 60 + minutes + durationMinutes
+                const totalMinutes = hours * 60 + minutes + durationMins
                 const endHours = Math.floor(totalMinutes / 60) % 24
                 const endMinutes = totalMinutes % 60
                 return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`
             }
-
-            const endTime = calculateEndTime(selectedTime, duration)
+            const endTime = calculateEndTime(selectedTime, totalDurationMin)
 
             // Validate Availability
             if (selectedStylistId) {
@@ -168,7 +180,7 @@ export function EditBookingDialog({ open, onOpenChange, onAppointmentUpdated, ap
                         format(date, "yyyy-MM-dd"),
                         selectedTime,
                         endTime,
-                        appointment.id // Exclude current appointment
+                        appointment.id
                     )
 
                     if (!isAvailable) {
@@ -178,23 +190,27 @@ export function EditBookingDialog({ open, onOpenChange, onAppointmentUpdated, ap
                     }
                 } catch (error) {
                     console.error("Validation failed", error)
-                    toast.error("Failed to validate availability")
-                    setIsLoading(false)
-                    return
                 }
             }
+
+            // Store service IDs as JSON in notes
+            const serviceIdsJson = JSON.stringify(selectedServiceIds)
+            const notesPrefix = `__SERVICE_IDS__:${serviceIdsJson}\n`
+            const allServiceNames = selectedServiceIds.map(id => services.find(s => s.id === id)?.name).filter(Boolean).join(', ')
+            const userNotes = selectedServiceIds.length > 1 ? `Services: ${allServiceNames}` : ''
 
             const dbAppointment: AppointmentUpdate = {
                 id: appointment.id,
                 date: format(date, "yyyy-MM-dd"),
                 time: selectedTime,
+                end_time: endTime,
+                duration: `${totalDurationMin} min`,
                 status: status as any,
-                service_id: selectedServiceId,
+                service_id: selectedServiceIds[0],
                 stylist_id: selectedStylistId,
-                // Update denormalized/cached fields if they exist in schema?
-                // Let's assume schema mainly uses IDs now, but if we have master_name, update it.
                 master_name: selectedStylist ? selectedStylist.name : undefined,
                 master_color: selectedStylist ? selectedStylist.color : undefined,
+                notes: notesPrefix + userNotes,
             }
 
             await updateAppointment(dbAppointment)
@@ -266,21 +282,31 @@ export function EditBookingDialog({ open, onOpenChange, onAppointmentUpdated, ap
                         </Select>
                     </div>
 
-                    {/* Service Selection */}
+                    {/* Service Selection - Multi-select */}
                     <div className="space-y-2">
-                        <Label className="text-sm text-muted-foreground">Service</Label>
-                        <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
-                            <SelectTrigger className="h-10">
-                                <SelectValue placeholder="Select Service" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {services.map(s => (
-                                    <SelectItem key={s.id} value={s.id}>
-                                        {s.name} ({s.duration} - ${s.price})
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Label className="text-sm text-muted-foreground">Services ({selectedServiceIds.length} selected)</Label>
+                        <div className="space-y-1 max-h-32 overflow-y-auto border rounded-lg p-2">
+                            {services.map(s => {
+                                const isSelected = selectedServiceIds.includes(s.id)
+                                return (
+                                    <button
+                                        key={s.id}
+                                        type="button"
+                                        onClick={() => {
+                                            if (isSelected) {
+                                                setSelectedServiceIds(prev => prev.filter(id => id !== s.id))
+                                            } else {
+                                                setSelectedServiceIds(prev => [...prev, s.id])
+                                            }
+                                        }}
+                                        className={`w-full flex items-center justify-between p-2 rounded-lg text-left text-sm transition-all ${isSelected ? 'bg-primary/10 border-primary' : 'hover:bg-secondary/50'}`}
+                                    >
+                                        <span>{s.name} ({s.duration} - ${s.price})</span>
+                                        {isSelected && <Check className="h-4 w-4 text-primary" />}
+                                    </button>
+                                )
+                            })}
+                        </div>
                     </div>
 
                     {/* Stylist Selection */}

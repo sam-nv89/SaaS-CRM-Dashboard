@@ -62,6 +62,9 @@ export default function BeautyFlowApp() {
       const dbAppointments = await getAppointmentsWithDetails()
 
       // Transform DB appointments to UI format
+      // Helper to strip seconds from time strings (14:30:00 -> 14:30)
+      const formatTime = (t: string) => t ? t.slice(0, 5) : t
+
       const uiAppointments: Appointment[] = dbAppointments.map((apt: AppointmentWithDetails) => {
         // Parse multi-service names from notes if exists
         let serviceName = apt.service?.name ?? 'Unknown Service'
@@ -77,8 +80,8 @@ export default function BeautyFlowApp() {
         return {
           id: apt.id,
           date: apt.date,
-          time: apt.time,
-          endTime: apt.end_time,
+          time: formatTime(apt.time),
+          endTime: formatTime(apt.end_time),
           clientName: apt.client?.name ?? 'Unknown Client',
           service: serviceName,
           serviceId: apt.service_id,

@@ -51,11 +51,12 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
   const [categories, setCategories] = useState<string[]>([])
 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
-  const [selectedService, setSelectedService] = useState<Service | null>(null)
+  const [selectedServices, setSelectedServices] = useState<Service[]>([])
   const [selectedStylist, setSelectedStylist] = useState<Stylist | null>(null)
   const [selectedTime, setSelectedTime] = useState<string>("")
   const [date, setDate] = useState<Date | undefined>(undefined)
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false)
 
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingData, setIsLoadingData] = useState(true)
@@ -76,7 +77,7 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
       }
       setStep(1)
       setSelectedClient(null)
-      setSelectedService(null)
+      setSelectedServices([])
       setSelectedStylist(null)
       setSelectedTime("")
       setClientSearch("")
@@ -108,35 +109,37 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
   // Effect to load available slots when date or stylist changes
   useEffect(() => {
     const fetchSlots = async () => {
-      if (step === 3 && date && selectedStylist && selectedService) {
-        // console.warn('[DEBUG] NewBookingDialog: Fetching slots for', { date, stylist: selectedStylist.name, service: selectedService.name })
-        // const { toast } = await import("sonner") // Dynamic import might be needed or use existing toast
-        // toast.info(`Debug: Checking availability for ${selectedStylist.name}...`)
+      if (step === 3 && date && selectedStylist && selectedServices.length > 0) {
+        setIsLoadingSlots(true)
+        setAvailableSlots([]) // Clear during load
 
-        // Import dynamically if needed or just use the imported one (we need to add it to imports)
         const { getAvailableTimeSlots } = await import("@/lib/db")
 
-        let durationMin = 60
-        // Parse duration from string "1h 30min" etc to number
-        // Re-using logic or simplified parser since calculateEndTime does it but returns string time
-        const dur = selectedService.duration.toLowerCase()
-        if (dur.includes('min') && !dur.includes('h')) {
-          const matches = dur.match(/(\d+)/)
-          if (matches) durationMin = parseInt(matches[0])
-        } else if (dur.includes('h')) {
-          if (dur.includes('.')) durationMin = parseFloat(dur) * 60
-          else durationMin = parseInt(dur) * 60
+        // Calculate total duration from all selected services
+        let totalDurationMin = 0
+        for (const service of selectedServices) {
+          const dur = service.duration.toLowerCase()
+          if (dur.includes('min') && !dur.includes('h')) {
+            const matches = dur.match(/(\d+)/)
+            if (matches) totalDurationMin += parseInt(matches[0])
+          } else if (dur.includes('h')) {
+            if (dur.includes('.')) totalDurationMin += parseFloat(dur) * 60
+            else totalDurationMin += parseInt(dur) * 60
+          } else {
+            totalDurationMin += 60 // default
+          }
         }
 
-        console.warn(`[DEBUG] Calling getAvailableTimeSlots with duration: ${durationMin} min`)
+        console.warn(`[DEBUG] Calling getAvailableTimeSlots with total duration: ${totalDurationMin} min`)
 
-        const slots = await getAvailableTimeSlots(selectedStylist.id, date, durationMin)
+        const slots = await getAvailableTimeSlots(selectedStylist.id, date, totalDurationMin)
         console.warn(`[DEBUG] Received ${slots.length} slots`)
         setAvailableSlots(slots)
+        setIsLoadingSlots(false)
       }
     }
     fetchSlots()
-  }, [step, date, selectedStylist, selectedService])
+  }, [step, date, selectedStylist, selectedServices])
 
   const [availableSlots, setAvailableSlots] = useState<string[]>([])
 
@@ -148,7 +151,7 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
     if (!open) {
       setStep(1)
       setSelectedClient(null)
-      setSelectedService(null)
+      setSelectedServices([])
       setSelectedStylist(null)
       setSelectedTime("")
       setClientSearch("")
@@ -178,7 +181,7 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
 
   const handleServiceCreated = (service: Service) => {
     setServices(prev => [...prev, service])
-    setSelectedService(service)
+    setSelectedServices(prev => [...prev, service])
     setIsAddServiceOpen(false)
   }
 
@@ -224,15 +227,26 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
   }
 
   const handleConfirm = async () => {
-    if (!selectedClient || !selectedService || !selectedStylist || !selectedTime || !date) return
+    if (!selectedClient || selectedServices.length === 0 || !selectedStylist || !selectedTime || !date) return
 
     setIsLoading(true)
 
     try {
-      const endTime = calculateEndTime(selectedTime, selectedService.duration)
+      // Calculate total duration for all services
+      const totalDuration = selectedServices.reduce((sum, svc) => {
+        let mins = 0
+        const dur = svc.duration.toLowerCase()
+        const hourMatch = dur.match(/(\d+(?:\.\d+)?)\s*h/)
+        const minMatch = dur.match(/(\d+)\s*min/)
+        if (hourMatch) mins += parseFloat(hourMatch[1]) * 60
+        if (minMatch) mins += parseInt(minMatch[1], 10)
+        if (mins === 0) mins = parseInt(dur, 10) || 60
+        return sum + mins
+      }, 0)
 
-      // Create appointment in Supabase
-      // 4. Validate Availability
+      const endTime = calculateEndTime(selectedTime, `${totalDuration} min`)
+
+      // Validate Availability
       if (selectedStylist.id) {
         const isAvailable = await checkAvailability(
           selectedStylist.id,
@@ -248,19 +262,22 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
         }
       }
 
+      // Create appointment for first service (primary), notes include all services
+      const primaryService = selectedServices[0]
+      const allServiceNames = selectedServices.map(s => s.name).join(', ')
+
       const dbAppointment: AppointmentInsert = {
         client_id: selectedClient.id,
-        service_id: selectedService.id,
+        service_id: primaryService.id,
         stylist_id: selectedStylist.id,
-        // Helper fields for UI/Legacy (if supported by DB trigger or column)
-        // Removing service_name/client_name as they are likely not in schema
         master_name: selectedStylist.name,
         master_color: selectedStylist.color,
         date: format(date, "yyyy-MM-dd"),
         time: selectedTime,
         end_time: endTime,
-        duration: selectedService.duration,
+        duration: `${totalDuration} min`,
         status: "confirmed",
+        notes: selectedServices.length > 1 ? `Services: ${allServiceNames}` : undefined,
       }
 
       await createAppointment(dbAppointment)
@@ -269,7 +286,7 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
       handleClose(false)
 
       toast.success("Appointment booked!", {
-        description: `${selectedClient.name} - ${selectedService.name} at ${selectedTime}`,
+        description: `${selectedClient.name} - ${allServiceNames} at ${selectedTime}`,
       })
     } catch (error: any) {
       console.error('Error creating appointment:', error)
@@ -282,7 +299,7 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
 
   const canProceed = () => {
     if (step === 1) return !!selectedClient
-    if (step === 2) return !!selectedService
+    if (step === 2) return selectedServices.length > 0
     if (step === 3) return !!selectedStylist && !!selectedTime && !!date
     return false
   }
@@ -333,7 +350,10 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
                       {filteredClients.map((client) => (
                         <button
                           key={client.id}
-                          onClick={() => setSelectedClient(client)}
+                          onClick={() => {
+                            setSelectedClient(client)
+                            setStep(2) // Auto-advance to next step
+                          }}
                           className={cn(
                             "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
                             selectedClient?.id === client.id
@@ -375,24 +395,33 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
                       </Button>
                     </div>
                     <div className="space-y-2">
-                      {services.map((service) => (
-                        <button
-                          key={service.id}
-                          onClick={() => setSelectedService(service)}
-                          className={cn(
-                            "w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left",
-                            selectedService?.id === service.id
-                              ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-                              : "border-border hover:bg-secondary/50",
-                          )}
-                        >
-                          <div>
-                            <p className="font-medium text-foreground text-sm">{service.name}</p>
-                            <p className="text-xs text-muted-foreground">{service.duration} • ${service.price}</p>
-                          </div>
-                          {selectedService?.id === service.id && <Check className="h-5 w-5 text-primary" />}
-                        </button>
-                      ))}
+                      {services.map((service) => {
+                        const isSelected = selectedServices.some(s => s.id === service.id)
+                        return (
+                          <button
+                            key={service.id}
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedServices(prev => prev.filter(s => s.id !== service.id))
+                              } else {
+                                setSelectedServices(prev => [...prev, service])
+                              }
+                            }}
+                            className={cn(
+                              "w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left",
+                              isSelected
+                                ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                                : "border-border hover:bg-secondary/50",
+                            )}
+                          >
+                            <div>
+                              <p className="font-medium text-foreground text-sm">{service.name}</p>
+                              <p className="text-xs text-muted-foreground">{service.duration} • ${service.price}</p>
+                            </div>
+                            {isSelected && <Check className="h-5 w-5 text-primary" />}
+                          </button>
+                        )
+                      })}
                       {services.length === 0 && (
                         <div className="text-center py-8">
                           <p className="text-muted-foreground text-sm mb-2">No services found</p>
@@ -488,7 +517,7 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
                           )}
                         </SelectContent>
                       </Select>
-                      {availableSlots.length === 0 && date && selectedStylist && (
+                      {availableSlots.length === 0 && date && selectedStylist && !isLoadingSlots && (
                         <p className="text-xs text-destructive font-medium mt-1">
                           Stylist is busy or salon is closed (Check Settings &gt; Business Hours).
                         </p>

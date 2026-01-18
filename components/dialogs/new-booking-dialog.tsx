@@ -334,7 +334,7 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
               <>
                 {/* Step 1: Select Client */}
                 {step === 1 && (
-                  <div className="space-y-3">
+                  <div className="space-y-3 animate-in fade-in-0 slide-in-from-right-8 duration-300">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-medium text-muted-foreground">Select Client</Label>
                       <Button variant="ghost" size="sm" className="h-6 text-xs text-primary hover:text-primary/80" onClick={() => setIsClientSheetOpen(true)}>
@@ -392,7 +392,7 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
 
                 {/* Step 2: Select Service */}
                 {step === 2 && (
-                  <div className="space-y-3">
+                  <div className="space-y-3 animate-in fade-in-0 slide-in-from-right-8 duration-300">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-medium text-muted-foreground">Select Service</Label>
                       <Button variant="ghost" size="sm" className="h-6 text-xs text-primary hover:text-primary/80" onClick={() => setIsAddServiceOpen(true)}>
@@ -441,7 +441,7 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
 
                 {/* Step 3: Date, Time & Stylist */}
                 {step === 3 && (
-                  <div className="space-y-6">
+                  <div className="space-y-6 animate-in fade-in-0 slide-in-from-right-8 duration-300">
                     {/* Date Selection */}
                     <div className="space-y-2">
                       <Label className="text-sm font-medium text-muted-foreground">Date</Label>

@@ -62,22 +62,34 @@ export default function BeautyFlowApp() {
       const dbAppointments = await getAppointmentsWithDetails()
 
       // Transform DB appointments to UI format
-      const uiAppointments: Appointment[] = dbAppointments.map((apt: AppointmentWithDetails) => ({
-        id: apt.id,
-        date: apt.date,
-        time: apt.time,
-        endTime: apt.end_time,
-        clientName: apt.client?.name ?? 'Unknown Client',
-        service: apt.service?.name ?? 'Unknown Service',
-        serviceId: apt.service_id, // Map service_id
-        duration: apt.duration,
-        status: apt.status,
-        // Logic to handle "Deleted Stylist" vs "Legacy Record"
-        // If stylist_id exists but stylist object is null, it means the stylist was deleted.
-        master: apt.stylist?.name ?? (apt.stylist_id ? 'Deleted Stylist' : apt.master_name),
-        stylistId: apt.stylist_id,
-        masterColor: apt.stylist?.color ?? (apt.stylist_id ? 'bg-gray-400' : apt.master_color),
-      }))
+      const uiAppointments: Appointment[] = dbAppointments.map((apt: AppointmentWithDetails) => {
+        // Parse multi-service names from notes if exists
+        let serviceName = apt.service?.name ?? 'Unknown Service'
+        const notes = (apt as any).notes || ''
+        if (notes.includes('Services:')) {
+          // Extract "Services: ServiceA, ServiceB" from notes
+          const match = notes.match(/Services:\s*(.+)/);
+          if (match) {
+            serviceName = match[1].trim()
+          }
+        }
+
+        return {
+          id: apt.id,
+          date: apt.date,
+          time: apt.time,
+          endTime: apt.end_time,
+          clientName: apt.client?.name ?? 'Unknown Client',
+          service: serviceName,
+          serviceId: apt.service_id,
+          duration: apt.duration,
+          status: apt.status,
+          master: apt.stylist?.name ?? (apt.stylist_id ? 'Deleted Stylist' : apt.master_name),
+          stylistId: apt.stylist_id,
+          masterColor: apt.stylist?.color ?? (apt.stylist_id ? 'bg-gray-400' : apt.master_color),
+          notes: notes, // Pass notes for edit dialog
+        }
+      })
 
       setAppointments(uiAppointments)
     } catch (error) {

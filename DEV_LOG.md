@@ -635,3 +635,68 @@ Dashboard теперь отображает реальные данные из S
 ## 2026-01-18: Session Wrap-up
 - **Result**: Smart Time Selection и Stylist Filter реализованы и отлажены.
 - **Next**: Тестирование UX записей и улучшение UI календаря.
+
+---
+
+## 2026-01-18: Вечерняя сессия — UX улучшения и аудит данных
+
+**Автор:** Antigravity Agent
+
+### Выполнено:
+
+1. **UX улучшения диалога записи:**
+   - ✅ Исправлена мгновенная вспышка сообщения "нет слотов" — добавлен `isLoadingSlots` state
+   - ✅ Автопереход на шаг 2 при выборе клиента
+   - ✅ **Мульти-выбор услуг**: можно выбрать несколько услуг одновременно
+     - Длительность суммируется для расчёта доступных слотов
+     - ID услуг сохраняются в `notes` как JSON (`__SERVICE_IDS__:[...]`)
+     - При редактировании парсятся и восстанавливаются выбранные услуги
+   - ✅ Современные CSS-анимации переходов между шагами (`animate-in slide-in-from-right-8`)
+
+2. **Отображение данных:**
+   - ✅ Календарь закрывается автоматически после выбора даты
+   - ✅ Неделя начинается с понедельника (`weekStartsOn={1}`)
+   - ✅ Формат времени: убраны секунды (14:30:00 → 14:30)
+   - ✅ Все выбранные услуги отображаются в карточках записей
+
+3. **Аудит зависимостей данных:**
+   - ✅ **Исправлен `getMasters()`**: теперь берёт только активных стилистов из таблицы `stylists`, а не legacy `master_name` из записей
+   - ✅ Проверено: все компоненты (NewBookingDialog, EditBookingDialog, CalendarView) корректно фильтруют по `active === true`
+
+4. **Чистота новых пользователей:**
+   - ✅ Подтверждено: seed-db вызывается только вручную (кнопка в Settings)
+   - ✅ Новые салоны стартуют с пустой БД
+
+**Файлы изменены:**
+- `app/page.tsx` — formatTime helper, парсинг Services из notes
+- `lib/db.ts` — getMasters() переписан на stylists + active filter
+- `components/dialogs/new-booking-dialog.tsx` — мульти-сервис, анимации, авто-переход
+- `components/dialogs/edit-booking-dialog.tsx` — мульти-сервис с парсингом JSON
+
+**Статус сборки:** ✅ Build successful
+
+**Коммиты:**
+- `2f1d6a9` — feat: multi-service selection, auto-advance on client click, fix flash message
+- `79550c8` — feat: smooth client selection transition, multi-service support with JSON storage
+- `2c73b5c` — feat: smooth slide animations for step transitions, display all services
+- `22bee47` — fix: strip seconds from time display, format HH:mm only
+- `e982576` — fix: getMasters() now uses active stylists from DB
+
+---
+
+## Статус проекта на конец сессии
+
+**Работает:**
+- ✅ Полный CRUD записей (создание, редактирование, отмена)
+- ✅ Мульти-выбор услуг с суммированием длительности
+- ✅ Умный подбор времени (учёт рабочих часов и занятости)
+- ✅ Фильтрация по стилистам в календаре
+- ✅ Dashboard с реальными данными
+- ✅ Аутентификация и RLS
+
+**Следующие задачи (для следующей сессии):**
+- [ ] UX тестирование: Create → Edit → Cancel flow
+- [ ] Sticky stylist filter (сохранение выбора)
+- [ ] Визуальное отличие закрытых дней
+- [ ] Мобильная адаптация календаря
+

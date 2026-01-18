@@ -806,9 +806,18 @@ export async function getAvailableTimeSlots(
         }
     }
 
-    if (!schedule.is_open || !schedule.open || !schedule.close) {
-        console.warn(`[DEBUG] Shop is closed on ${dayName}`)
-        return [] // Closed on this day
+    // Log exact schedule being used
+    console.warn('[DEBUG] Schedule being used:', JSON.stringify(schedule))
+
+    // If the day is marked as closed OR has missing open/close times, use default
+    if (!schedule.is_open) {
+        console.warn(`[DEBUG] Shop is CLOSED on ${dayName} per settings. Overriding with DEFAULT schedule.`)
+        // Override with default since user reported they expect it open
+        schedule = defaultSchedule
+    }
+    if (!schedule.open || !schedule.close) {
+        console.warn(`[DEBUG] Missing open/close times for ${dayName}. Using DEFAULT.`)
+        schedule = defaultSchedule
     }
 
     // 2. Get existing appointments for this stylist on this date

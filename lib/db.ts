@@ -732,19 +732,19 @@ export async function repairDatabase(): Promise<{ fixed: number, message: string
 }
 
 /**
- * Get list of masters for filter
+ * Get list of active staff for filter (uses stylists table, not legacy appointment data)
  */
 export async function getMasters(): Promise<string[]> {
     const { data, error } = await supabase
-        .from('appointments')
-        .select('master_name')
+        .from('stylists')
+        .select('name')
+        .eq('active', true)
+        .order('name')
 
     if (error) throw error
 
-    const mastersSet = new Set<string>()
-        ; (data || []).forEach((apt: { master_name: string }) => mastersSet.add(apt.master_name))
-
-    return ['All Masters', ...Array.from(mastersSet)]
+    const names = (data || []).map((s: { name: string }) => s.name)
+    return ['All Masters', ...names]
 }
 
 /**

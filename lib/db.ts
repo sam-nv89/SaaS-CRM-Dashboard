@@ -822,19 +822,28 @@ export async function getAvailableTimeSlots(
 
     // 2. Get existing appointments for this stylist on this date
     const dateStr = format(date, 'yyyy-MM-dd')
-    const { data: existingAppointments, error } = await supabase
+
+    // Build query - only add neq filter if excludeAppointmentId is provided
+    let query = supabase
         .from('appointments')
         .select('*')
         .eq('stylist_id', stylistId)
         .eq('date', dateStr)
         .in('status', ['confirmed', 'pending'])
-        .neq('id', excludeAppointmentId || '')
+
+    // Only exclude appointment if we have a valid ID to exclude
+    if (excludeAppointmentId && excludeAppointmentId.trim() !== '') {
+        query = query.neq('id', excludeAppointmentId)
+    }
+
+    const { data: existingAppointments, error } = await query
 
     if (error) {
         console.error("Error fetching appointments:", error)
-        return []
+        // Don't return empty - return all slots since we can't verify collisions
+        console.warn('[DEBUG] Continuing with slot generation despite appointment fetch error')
     }
-    console.log(`[DEBUG] Found ${existingAppointments?.length} existing appointments for stylist ${stylistId}`)
+    console.warn(`[DEBUG] Found ${existingAppointments?.length ?? 0} existing appointments for stylist ${stylistId}`)
 
     // 3. Generate slots
     const slots: string[] = []

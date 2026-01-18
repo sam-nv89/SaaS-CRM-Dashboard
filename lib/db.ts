@@ -272,9 +272,27 @@ export async function getAppointments(date?: string): Promise<Appointment[]> {
 }
 
 export async function createAppointment(appointment: AppointmentInsert): Promise<Appointment> {
+    // Sanitize UUID fields - convert empty strings to null/undefined
+    const sanitized = {
+        ...appointment,
+        client_id: appointment.client_id && appointment.client_id.trim() !== '' ? appointment.client_id : undefined,
+        service_id: appointment.service_id && appointment.service_id.trim() !== '' ? appointment.service_id : undefined,
+        stylist_id: appointment.stylist_id && appointment.stylist_id.trim() !== '' ? appointment.stylist_id : undefined,
+    }
+
+    // Validate required fields
+    if (!sanitized.client_id) {
+        throw new Error('Client is required')
+    }
+    if (!sanitized.service_id) {
+        throw new Error('Service is required')
+    }
+
+    console.warn('[DEBUG] createAppointment:', sanitized)
+
     const { data, error } = await supabase
         .from('appointments')
-        .insert(appointment)
+        .insert(sanitized)
         .select()
         .single()
 

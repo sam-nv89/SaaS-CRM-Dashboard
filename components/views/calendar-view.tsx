@@ -155,10 +155,21 @@ export function CalendarView({
     return apt !== null && apt.time === slotTime
   }
 
-  // Calculate how many 30-min slots an appointment spans
+  // Calculate how many 30-min slots an appointment spans (based on time/endTime, not stored duration)
   const getAppointmentSpan = (apt: Appointment): number => {
-    const durationMins = parseDurationToMinutes(apt.duration)
-    return Math.ceil(durationMins / 30)
+    // Parse start time
+    const [startH, startM] = apt.time.split(':').map(Number)
+    const startMins = startH * 60 + startM
+
+    // Parse end time
+    const endTimeParts = apt.endTime.split(':').map(Number)
+    const endMins = endTimeParts[0] * 60 + endTimeParts[1]
+
+    // Calculate actual duration in minutes
+    const durationMins = endMins - startMins
+
+    // Return at least 1 slot (30-min increments, rounded up)
+    return Math.max(1, Math.ceil(durationMins / 30))
   }
 
   const filteredAppointments = appointments.filter((apt) => {

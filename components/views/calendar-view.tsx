@@ -25,6 +25,8 @@ interface CalendarViewProps {
   onNextDay: () => void
   onToday: () => void
   onDataChange?: () => void
+  /** Callback for creating booking with preset time/stylist from Grid View */
+  onNewBookingWithPreset?: (preset: { time: string; stylistId: string }) => void
 }
 
 const statusStyles: Record<AppointmentStatus, string> = {
@@ -34,7 +36,7 @@ const statusStyles: Record<AppointmentStatus, string> = {
 }
 
 const filters = ["All", "Confirmed", "Pending", "Canceled"] as const
-const viewModes = ["Day", "Week"] as const
+const viewModes = ["Day", "Week", "Grid"] as const
 
 export function CalendarView({
   appointments,
@@ -44,7 +46,8 @@ export function CalendarView({
   onPrevDay,
   onNextDay,
   onToday,
-  onDataChange
+  onDataChange,
+  onNewBookingWithPreset
 }: CalendarViewProps) {
   const [activeFilter, setActiveFilter] = useState<string>("All")
   const [viewMode, setViewMode] = useState<string>("Day")
@@ -99,6 +102,63 @@ export function CalendarView({
         return false
       }
     })
+  }
+
+  // Grid View: Generate time slots (30-min intervals)
+  const generateTimeSlots = (startHour = 9, endHour = 21): string[] => {
+    const slots: string[] = []
+    for (let h = startHour; h < endHour; h++) {
+      slots.push(`${h.toString().padStart(2, '0')}:00`)
+      slots.push(`${h.toString().padStart(2, '0')}:30`)
+    }
+    return slots
+  }
+
+  const gridTimeSlots = useMemo(() => generateTimeSlots(), [])
+
+  // Parse duration string to minutes
+  const parseDurationToMinutes = (duration: string): number => {
+    let mins = 0
+    const dur = duration.toLowerCase()
+    const hourMatch = dur.match(/(\d+(?:\.\d+)?)\s*h/)
+    const minMatch = dur.match(/(\d+)\s*min/)
+    if (hourMatch) mins += parseFloat(hourMatch[1]) * 60
+    if (minMatch) mins += parseInt(minMatch[1], 10)
+    if (mins === 0) mins = parseInt(dur, 10) || 60
+    return mins
+  }
+
+  // Find appointment that occupies a specific slot (time + stylist)
+  const findAppointmentAtSlot = (slotTime: string, stylistId: string): Appointment | null => {
+    const dayAppointments = getAppointmentsForDay(currentDate)
+
+    for (const apt of dayAppointments) {
+      if (apt.stylistId !== stylistId) continue
+
+      // Check if this slot falls within appointment's time range
+      const aptStartMins = parseInt(apt.time.split(':')[0]) * 60 + parseInt(apt.time.split(':')[1])
+      const aptDurationMins = parseDurationToMinutes(apt.duration)
+      const aptEndMins = aptStartMins + aptDurationMins
+
+      const slotMins = parseInt(slotTime.split(':')[0]) * 60 + parseInt(slotTime.split(':')[1])
+
+      if (slotMins >= aptStartMins && slotMins < aptEndMins) {
+        return apt
+      }
+    }
+    return null
+  }
+
+  // Check if this slot is the START of an appointment (for rendering the card)
+  const isAppointmentStart = (slotTime: string, stylistId: string): boolean => {
+    const apt = findAppointmentAtSlot(slotTime, stylistId)
+    return apt !== null && apt.time === slotTime
+  }
+
+  // Calculate how many 30-min slots an appointment spans
+  const getAppointmentSpan = (apt: Appointment): number => {
+    const durationMins = parseDurationToMinutes(apt.duration)
+    return Math.ceil(durationMins / 30)
   }
 
   const filteredAppointments = appointments.filter((apt) => {
@@ -369,6 +429,132 @@ export function CalendarView({
             </div>
           )}
         </>
+      )}
+
+      {/* Grid View - Staff Workload Table */}
+      {viewMode === "Grid" && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-lg font-semibold text-foreground">Staff Schedule</h2>
+            <span className="text-sm text-muted-foreground">{format(currentDate, "MMM d, yyyy")}</span>
+          </div>
+
+          {stylists.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No stylists available</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto -mx-4 px-4">
+              <div className="min-w-[600px]">
+                {/* Header Row - Stylists */}
+                <div
+                  className="grid gap-1 mb-1 sticky top-0 bg-background z-10"
+                  style={{ gridTemplateColumns: `80px repeat(${stylists.length}, 1fr)` }}
+                >
+                  <div className="p-2 text-xs font-medium text-muted-foreground">Time</div>
+                  {stylists.map((stylist) => (
+                    <div
+                      key={stylist.id}
+                      className="p-2 text-center"
+                    >
+                      <div className={`w-3 h-3 rounded-full mx-auto mb-1 ${stylist.color}`} />
+                      <span className="text-xs font-medium text-foreground">{stylist.name}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Time Slots Grid */}
+                <div className="space-y-0.5">
+                  {gridTimeSlots.map((timeSlot, slotIndex) => {
+                    // Track which cells to skip (due to rowspan from previous appointments)
+                    const skipCells: Record<string, boolean> = {}
+
+                    return (
+                      <div
+                        key={timeSlot}
+                        className="grid gap-1"
+                        style={{ gridTemplateColumns: `80px repeat(${stylists.length}, 1fr)` }}
+                      >
+                        {/* Time Label */}
+                        <div className="p-2 text-xs text-muted-foreground font-mono bg-secondary/30 rounded flex items-center">
+                          {timeSlot}
+                        </div>
+
+                        {/* Stylist Cells */}
+                        {stylists.map((stylist) => {
+                          const apt = findAppointmentAtSlot(timeSlot, stylist.id)
+                          const isStart = apt && apt.time === timeSlot
+                          const isOccupied = apt !== null && !isStart
+
+                          // Skip rendering if this cell is part of a multi-slot appointment
+                          if (isOccupied) {
+                            return (
+                              <div
+                                key={stylist.id}
+                                className="min-h-[40px]"
+                              // This cell is visually merged with the appointment above
+                              />
+                            )
+                          }
+
+                          if (isStart && apt) {
+                            const span = getAppointmentSpan(apt)
+                            return (
+                              <div
+                                key={stylist.id}
+                                className={`
+                                  rounded-lg border cursor-pointer transition-all hover:ring-2 hover:ring-primary/50
+                                  ${apt.status === 'canceled' ? 'opacity-50' : ''}
+                                  ${apt.masterColor} bg-opacity-20
+                                `}
+                                style={{
+                                  minHeight: `${span * 40 + (span - 1) * 2}px`,
+                                  gridRow: `span ${span}`
+                                }}
+                                onClick={() => handleEdit(apt)}
+                              >
+                                <div className="p-2 h-full flex flex-col">
+                                  <div className="flex items-center gap-1 mb-1">
+                                    <Badge
+                                      variant="outline"
+                                      className={`text-[8px] px-1 py-0 ${statusStyles[apt.status]}`}
+                                    >
+                                      {apt.status.charAt(0).toUpperCase()}
+                                    </Badge>
+                                    <span className="text-[10px] text-muted-foreground">{apt.time}</span>
+                                  </div>
+                                  <p className="text-xs font-medium text-foreground truncate">{apt.clientName}</p>
+                                  <p className="text-[10px] text-muted-foreground truncate">{apt.service}</p>
+                                </div>
+                              </div>
+                            )
+                          }
+
+                          // Empty slot - clickable to create new booking
+                          return (
+                            <div
+                              key={stylist.id}
+                              className="min-h-[40px] rounded-lg border border-dashed border-border/50 hover:border-primary hover:bg-primary/5 cursor-pointer transition-all group flex items-center justify-center"
+                              onClick={() => {
+                                if (onNewBookingWithPreset) {
+                                  onNewBookingWithPreset({ time: timeSlot, stylistId: stylist.id })
+                                } else {
+                                  onNewBooking()
+                                }
+                              }}
+                            >
+                              <Plus className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary transition-colors" />
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Edit Dialog */}

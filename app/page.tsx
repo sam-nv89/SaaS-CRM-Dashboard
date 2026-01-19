@@ -40,6 +40,7 @@ export default function BeautyFlowApp() {
   const [isLoading, setIsLoading] = useState(true)
   const [globalSearch, setGlobalSearch] = useState("")
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [bookingPreset, setBookingPreset] = useState<{ time?: string; stylistId?: string } | null>(null)
 
   // Date navigation handlers
   const handlePrevDay = () => setCurrentDate((prev) => subDays(prev, 1))
@@ -112,13 +113,20 @@ export default function BeautyFlowApp() {
         return (
           <CalendarView
             appointments={appointments}
-            onNewBooking={() => setBookingDialogOpen(true)}
+            onNewBooking={() => {
+              setBookingPreset(null)
+              setBookingDialogOpen(true)
+            }}
             isLoading={isLoading}
             currentDate={currentDate}
             onPrevDay={handlePrevDay}
             onNextDay={handleNextDay}
             onToday={handleToday}
             onDataChange={loadAppointments}
+            onNewBookingWithPreset={(preset) => {
+              setBookingPreset(preset)
+              setBookingDialogOpen(true)
+            }}
           />
         )
       case "clients":
@@ -149,9 +157,14 @@ export default function BeautyFlowApp() {
 
       <NewBookingDialog
         open={bookingDialogOpen}
-        onOpenChange={setBookingDialogOpen}
+        onOpenChange={(open) => {
+          setBookingDialogOpen(open)
+          if (!open) setBookingPreset(null)
+        }}
         onBookingCreated={loadAppointments}
         initialDate={currentDate}
+        initialTime={bookingPreset?.time}
+        initialStylistId={bookingPreset?.stylistId}
       />
 
       <Toaster position="top-center" richColors />

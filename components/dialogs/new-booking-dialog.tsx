@@ -32,6 +32,10 @@ interface NewBookingDialogProps {
   onBookingCreated: () => void
   /** Начальная дата для создания записи (из календаря) */
   initialDate?: Date
+  /** Предзаполненное время (из Grid View) */
+  initialTime?: string
+  /** Предзаполненный стилист ID (из Grid View) */
+  initialStylistId?: string
 }
 
 const timeSlots = [
@@ -42,7 +46,7 @@ const timeSlots = [
 
 type Step = 1 | 2 | 3
 
-export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initialDate }: NewBookingDialogProps) {
+export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initialDate, initialTime, initialStylistId }: NewBookingDialogProps) {
   const [step, setStep] = useState<Step>(1)
   const [clientSearch, setClientSearch] = useState("")
   const [clients, setClients] = useState<Client[]>([])
@@ -79,10 +83,20 @@ export function NewBookingDialog({ open, onOpenChange, onBookingCreated, initial
       setSelectedClient(null)
       setSelectedServices([])
       setSelectedStylist(null)
-      setSelectedTime("")
+      setSelectedTime(initialTime || "")
       setClientSearch("")
     }
-  }, [open, initialDate])
+  }, [open, initialDate, initialTime])
+
+  // Pre-select stylist when initialStylistId is provided (after stylists are loaded)
+  useEffect(() => {
+    if (open && initialStylistId && stylists.length > 0) {
+      const presetStylist = stylists.find(s => s.id === initialStylistId)
+      if (presetStylist) {
+        setSelectedStylist(presetStylist)
+      }
+    }
+  }, [open, initialStylistId, stylists])
 
   const loadData = async () => {
     try {

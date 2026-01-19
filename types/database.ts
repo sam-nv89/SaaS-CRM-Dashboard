@@ -22,10 +22,26 @@ export interface Service {
     created_at: string
 }
 
+export interface Category {
+    id: string
+    name: string
+    created_at: string
+}
+
+
+export interface Stylist {
+    id: string
+    name: string
+    color: string
+    active: boolean
+    created_at: string
+}
+
 export interface Appointment {
     id: string
     client_id: string
     service_id: string
+    stylist_id?: string
     master_name: string
     master_color: string
     date: string
@@ -35,6 +51,16 @@ export interface Appointment {
     status: 'confirmed' | 'pending' | 'canceled'
     notes?: string
     created_at: string
+}
+
+/**
+ * Appointment с данными связанных таблиц (client, service).
+ * Используется для отображения в UI с реальными именами.
+ */
+export interface AppointmentWithDetails extends Appointment {
+    client: { name: string } | null
+    service: { name: string } | null
+    stylist?: { name: string, color: string } | null
 }
 
 export interface BusinessSettings {

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { ClientSheet } from "@/components/dialogs/client-sheet"
+import { ClientProfileDialog } from "@/components/dialogs/client-profile-dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { getClients, createClient, updateClient, deleteClient } from "@/lib/db"
 import type { Client } from "@/types/database"
@@ -34,7 +35,9 @@ export function ClientsView({ searchQuery: externalSearchQuery }: ClientsViewPro
   const [sheetOpen, setSheetOpen] = useState(false)
   const [clientToEdit, setClientToEdit] = useState<Client | undefined>(undefined)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false)
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null)
+  const [clientToView, setClientToView] = useState<Client | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   // Load clients from Supabase on mount
@@ -111,6 +114,11 @@ export function ClientsView({ searchQuery: externalSearchQuery }: ClientsViewPro
   const confirmDelete = (client: Client) => {
     setClientToDelete(client)
     setDeleteDialogOpen(true)
+  }
+
+  const openProfileDialog = (client: Client) => {
+    setClientToView(client)
+    setProfileDialogOpen(true)
   }
 
   const handleDelete = async () => {
@@ -212,7 +220,7 @@ export function ClientsView({ searchQuery: externalSearchQuery }: ClientsViewPro
                       <DropdownMenuItem className="cursor-pointer" onClick={() => openEditSheet(client)}>
                         Edit Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="cursor-pointer">
+                      <DropdownMenuItem className="cursor-pointer" onClick={() => openProfileDialog(client)}>
                         View Profile
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
@@ -272,6 +280,12 @@ export function ClientsView({ searchQuery: externalSearchQuery }: ClientsViewPro
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ClientProfileDialog
+        open={profileDialogOpen}
+        onOpenChange={setProfileDialogOpen}
+        client={clientToView}
+      />
     </div>
   )
 }

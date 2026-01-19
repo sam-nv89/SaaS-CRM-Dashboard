@@ -519,13 +519,13 @@ export function CalendarView({
                                   {/* Appointment Card - Improved Layout */}
                                   <div
                                     className={`
-                                      absolute top-0 left-0 right-0 z-10 m-0.5 rounded-lg shadow-sm border
+                                      absolute top-0 left-0 right-0 z-10 m-[3px] rounded-lg shadow-sm border
                                       flex flex-col cursor-pointer transition-all hover:scale-[1.01] hover:shadow-md
                                       ${statusStyles[apt.status]}
                                       bg-card overflow-hidden
                                     `}
                                     style={{
-                                      height: `calc(${heightPx}px - 4px)`,
+                                      height: `calc(${heightPx}px - 7px)`,
                                       borderLeftWidth: '4px',
                                       borderLeftColor: apt.masterColor?.includes('bg-') ? undefined : apt.masterColor
                                     }}
@@ -551,7 +551,7 @@ export function CalendarView({
                                       <div className="flex items-center gap-1.5 mb-1">
                                         {/* Status Dot */}
                                         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${apt.status === 'confirmed' ? 'bg-confirmed' :
-                                            apt.status === 'pending' ? 'bg-pending' : 'bg-canceled'
+                                          apt.status === 'pending' ? 'bg-pending' : 'bg-canceled'
                                           }`} />
                                         <span className="font-bold text-sm text-foreground truncate leading-tight">
                                           {apt.clientName}

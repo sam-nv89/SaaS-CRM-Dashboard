@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
 import { getSettings, updateSettings, getStylists, createStylist, deleteStylist } from "@/lib/db"
 import { supabase } from "@/lib/supabase"
+import { DeleteAccountDialog } from "@/components/dialogs/delete-account-dialog"
 import type { BusinessHour, NotificationSettings, Stylist } from "@/types/database"
 
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -53,6 +54,10 @@ export function SettingsView() {
   const [company, setCompany] = useState("")
   const [userEmail, setUserEmail] = useState("")
   const [isSavingProfile, setIsSavingProfile] = useState(false)
+
+  // Account Deletion state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false)
 
   // Load settings and profile from Supabase on mount
   useEffect(() => {
@@ -749,12 +754,12 @@ export function SettingsView() {
             </CardContent>
           </Card>
 
-          {/* Danger Zone - Account Deletion */}
-          <Card className="border-destructive/30 bg-destructive/5 shadow-sm">
+          {/* Account Deletion */}
+          <Card className="border-border bg-card shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2 text-destructive">
+              <CardTitle className="text-base flex items-center gap-2">
                 <Trash2 className="h-4 w-4" />
-                Danger Zone
+                Account Deletion
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -768,36 +773,7 @@ export function SettingsView() {
                 </div>
                 <Button
                   variant="destructive"
-                  onClick={async () => {
-                    const confirmed = window.confirm(
-                      "Schedule account for deletion?\n\n" +
-                      "Your account will be permanently deleted in 30 days.\n\n" +
-                      "During this time:\n" +
-                      "• You can continue using the service normally\n" +
-                      "• A warning banner will remind you of the pending deletion\n" +
-                      "• You can cancel deletion anytime before the 30 days expire\n\n" +
-                      "After 30 days, ALL data will be permanently removed."
-                    )
-                    if (!confirmed) return
-
-                    try {
-                      toast.loading("Scheduling deletion...", { id: "delete-account" })
-
-                      const { scheduleAccountDeletion } = await import("@/lib/db")
-                      const deletionDate = await scheduleAccountDeletion()
-
-                      toast.success(
-                        `Account scheduled for deletion on ${deletionDate.toLocaleDateString()}. You can cancel anytime.`,
-                        { id: "delete-account", duration: 5000 }
-                      )
-
-                      // Reload page to show deletion banner
-                      window.location.reload()
-                    } catch (error) {
-                      console.error("Schedule deletion error:", error)
-                      toast.error("Failed to schedule deletion. Please try again.", { id: "delete-account" })
-                    }
-                  }}
+                  onClick={() => setDeleteDialogOpen(true)}
                   className="w-full"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
@@ -806,6 +782,36 @@ export function SettingsView() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Delete Account Confirmation Dialog */}
+          <DeleteAccountDialog
+            open={deleteDialogOpen}
+            onOpenChange={setDeleteDialogOpen}
+            isLoading={isDeletingAccount}
+            onConfirm={async () => {
+              try {
+                setIsDeletingAccount(true)
+                toast.loading("Scheduling deletion...", { id: "delete-account" })
+
+                const { scheduleAccountDeletion } = await import("@/lib/db")
+                const deletionDate = await scheduleAccountDeletion()
+
+                toast.success(
+                  `Account scheduled for deletion on ${deletionDate.toLocaleDateString()}. You can cancel anytime.`,
+                  { id: "delete-account", duration: 5000 }
+                )
+
+                setDeleteDialogOpen(false)
+                // Reload page to show deletion banner
+                window.location.reload()
+              } catch (error) {
+                console.error("Schedule deletion error:", error)
+                toast.error("Failed to schedule deletion. Please try again.", { id: "delete-account" })
+              } finally {
+                setIsDeletingAccount(false)
+              }
+            }}
+          />
         </TabsContent>
       </Tabs>
     </div>

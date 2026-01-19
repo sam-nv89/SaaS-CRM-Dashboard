@@ -519,15 +519,23 @@ export function CalendarView({
                             }
 
                             if (isStart && apt) {
-                              const span = getAppointmentSpan(apt)
-                              const heightPx = span * ROW_H
+                              // Calculate PRECISE height based on actual minutes, not rounded slots
+                              const [startH, startM] = apt.time.split(':').map(Number)
+                              const startMins = startH * 60 + startM
+                              const endTimeParts = apt.endTime.split(':').map(Number)
+                              const endMins = endTimeParts[0] * 60 + endTimeParts[1]
+                              const durationMins = endMins - startMins
+
+                              // Each 30-min slot = ROW_H pixels, so 1 minute = ROW_H/30 pixels
+                              const pixelsPerMinute = ROW_H / 30
+                              const heightPx = Math.max(ROW_H, durationMins * pixelsPerMinute)
 
                               return (
                                 <div
                                   key={stylist.id}
                                   className={`relative h-[${ROW_H}px] border-r border-border/30 last:border-r-0 p-0.5 z-10 overflow-visible`}
                                 >
-                                  {/* Appointment Card - Improved Layout */}
+                                  {/* Appointment Card - Precise Height */}
                                   <div
                                     className={`
                                       absolute top-0 left-0 right-0 z-10 m-[3px] rounded-lg shadow-sm border

@@ -508,21 +508,15 @@ export function CalendarView({
 
                             if (isStart && apt) {
                               const span = getAppointmentSpan(apt)
-                              // Calculate exact visual height based on duration
-                              // Each 30min slot is ROW_H px
-                              const durationMinutes = parseInt(apt.duration) || 30
-                              const exactHeightPx = (durationMinutes / 30) * ROW_H
+                              const heightPx = span * ROW_H
 
                               return (
                                 <div
-                                  key={`${apt.id}-${timeSlot}`}
-                                  className={`relative border-r border-border/30 last:border-r-0 p-0.5 z-10 group/slot`}
-                                  style={{
-                                    gridRow: `span ${span}`,
-                                    height: `${span * ROW_H}px` // Container takes full grid space
-                                  }}
+                                  key={stylist.id}
+                                  className={`relative h-[${ROW_H}px] border-r border-border/30 last:border-r-0 p-0.5 z-10`}
+                                  style={{ gridRow: `span ${span}` }}
                                 >
-                                  {/* Appointment Card */}
+                                  {/* Appointment Card - Improved Layout */}
                                   <div
                                     className={`
                                       absolute top-0 left-0 right-0 z-10 m-0.5 rounded-lg shadow-sm border
@@ -531,8 +525,7 @@ export function CalendarView({
                                       bg-card overflow-hidden
                                     `}
                                     style={{
-                                      // Visual height matches exact duration (minus margins)
-                                      height: `calc(${exactHeightPx}px - 4px)`,
+                                      height: `calc(${heightPx}px - 4px)`,
                                       borderLeftWidth: '4px',
                                       borderLeftColor: apt.masterColor?.includes('bg-') ? undefined : apt.masterColor
                                     }}
@@ -543,18 +536,18 @@ export function CalendarView({
                                   >
                                     {/* Header: Time + Price */}
                                     <div className="flex justify-between items-center px-2 pt-1.5">
-                                      <span className="text-xs font-mono text-muted-foreground leading-none min-w-0 truncate">
-                                        {apt.time}-{apt.endTime}
+                                      <span className="text-xs font-mono font-medium text-foreground/70 leading-none min-w-0 truncate">
+                                        {apt.time} - {apt.endTime}
                                       </span>
                                       {apt.price && (
-                                        <span className="text-xs font-bold text-primary leading-none bg-primary/10 px-1.5 py-0.5 rounded ml-1 flex-shrink-0">
+                                        <span className="text-xs font-bold text-primary leading-none bg-primary/10 px-1.5 py-0.5 rounded ml-2 flex-shrink-0">
                                           ${apt.price}
                                         </span>
                                       )}
                                     </div>
 
                                     {/* Body: Content */}
-                                    <div className="px-2 flex flex-col justify-center flex-1 min-h-0 py-1">
+                                    <div className="px-2 flex flex-col justify-center flex-1 min-h-0 pb-1">
                                       <div className="flex items-center gap-1.5 mb-1">
                                         {/* Status Dot */}
                                         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${apt.status === 'confirmed' ? 'bg-confirmed' :
@@ -565,7 +558,7 @@ export function CalendarView({
                                         </span>
                                       </div>
 
-                                      <span className="text-xs text-muted-foreground truncate leading-none opacity-90">
+                                      <span className="text-xs text-muted-foreground truncate leading-snug opacity-90 pl-3.5">
                                         {apt.service}
                                       </span>
                                     </div>

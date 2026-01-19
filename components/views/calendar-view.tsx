@@ -514,7 +514,8 @@ export function CalendarView({
                             const ROW_H = 36
 
                             if (isOccupiedByPrevious) {
-                              return <div key={stylist.id} className={`h-[${ROW_H}px] border-r border-border/30 last:border-r-0`} />
+                              // Occupied by a previous row's appointment - make transparent so card shows through
+                              return <div key={stylist.id} className={`h-[${ROW_H}px] border-r border-border/30 last:border-r-0 bg-transparent pointer-events-none`} />
                             }
 
                             if (isStart && apt) {

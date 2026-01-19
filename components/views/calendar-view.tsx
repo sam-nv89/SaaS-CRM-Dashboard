@@ -513,8 +513,7 @@ export function CalendarView({
                               return (
                                 <div
                                   key={stylist.id}
-                                  className={`relative h-[${ROW_H}px] border-r border-border/30 last:border-r-0 p-0.5 z-10`}
-                                  style={{ gridRow: `span ${span}` }}
+                                  className={`relative h-[${ROW_H}px] border-r border-border/30 last:border-r-0 p-0.5 z-10 overflow-visible`}
                                 >
                                   {/* Appointment Card - Improved Layout */}
                                   <div

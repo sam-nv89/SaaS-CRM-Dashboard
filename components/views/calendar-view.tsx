@@ -38,6 +38,13 @@ const statusStyles: Record<AppointmentStatus, string> = {
 const filters = ["All", "Confirmed", "Pending", "Canceled"] as const
 const viewModes = ["Day", "Week", "Grid"] as const
 
+// Helper to get minutes from "HH:mm"
+function getTimeMinutes(timeStr: string): number {
+  if (!timeStr) return 0
+  const [hours, minutes] = timeStr.split(':').map(Number)
+  return hours * 60 + minutes
+}
+
 export function CalendarView({
   appointments,
   onNewBooking,
@@ -508,7 +515,13 @@ export function CalendarView({
 
                             if (isStart && apt) {
                               const span = getAppointmentSpan(apt)
-                              const heightPx = span * ROW_H
+                              // Calculate exact height based on duration in minutes to avoid overlaps
+                              // span is for grid rows (30 min blocks), but visual height should be precise
+                              const startMinutes = getTimeMinutes(apt.time)
+                              const endMinutes = getTimeMinutes(apt.endTime)
+                              const durationMinutes = endMinutes - startMinutes
+                              // scale: ROW_H (36px) per 30 minutes -> 1.2px per minute
+                              const heightPx = (durationMinutes / 30) * ROW_H
 
                               return (
                                 <div

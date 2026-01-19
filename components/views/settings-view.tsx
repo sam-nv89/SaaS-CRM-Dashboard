@@ -762,56 +762,46 @@ export function SettingsView() {
                 <div>
                   <p className="text-sm font-semibold text-foreground">Delete Account</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Permanently delete your account and all associated data including clients, appointments, services, and settings.
-                    This action cannot be undone.
+                    Schedule your account for permanent deletion. You will have <strong>30 days</strong> to cancel
+                    before all data is permanently removed. During this period, you can continue using the service.
                   </p>
                 </div>
                 <Button
                   variant="destructive"
                   onClick={async () => {
                     const confirmed = window.confirm(
-                      "Are you absolutely sure you want to delete your account?\n\n" +
-                      "This will permanently remove:\n" +
-                      "• All your clients\n" +
-                      "• All appointments\n" +
-                      "• All services\n" +
-                      "• All settings\n" +
-                      "• Your user profile\n\n" +
-                      "This action CANNOT be undone!"
+                      "Schedule account for deletion?\n\n" +
+                      "Your account will be permanently deleted in 30 days.\n\n" +
+                      "During this time:\n" +
+                      "• You can continue using the service normally\n" +
+                      "• A warning banner will remind you of the pending deletion\n" +
+                      "• You can cancel deletion anytime before the 30 days expire\n\n" +
+                      "After 30 days, ALL data will be permanently removed."
                     )
                     if (!confirmed) return
 
-                    const doubleConfirm = window.prompt(
-                      "To confirm deletion, type DELETE in the box below:"
-                    )
-                    if (doubleConfirm !== "DELETE") {
-                      toast.error("Account deletion cancelled")
-                      return
-                    }
-
                     try {
-                      toast.loading("Deleting account...", { id: "delete-account" })
+                      toast.loading("Scheduling deletion...", { id: "delete-account" })
 
-                      // Delete all user data first
-                      const { deleteAllUserData } = await import("@/lib/db")
-                      await deleteAllUserData()
+                      const { scheduleAccountDeletion } = await import("@/lib/db")
+                      const deletionDate = await scheduleAccountDeletion()
 
-                      // Sign out
-                      await supabase.auth.signOut()
+                      toast.success(
+                        `Account scheduled for deletion on ${deletionDate.toLocaleDateString()}. You can cancel anytime.`,
+                        { id: "delete-account", duration: 5000 }
+                      )
 
-                      toast.success("Account deleted successfully", { id: "delete-account" })
-
-                      // Redirect to login
-                      window.location.href = "/login?message=" + encodeURIComponent("Your account has been deleted") + "&type=success"
+                      // Reload page to show deletion banner
+                      window.location.reload()
                     } catch (error) {
-                      console.error("Delete account error:", error)
-                      toast.error("Failed to delete account. Please contact support.", { id: "delete-account" })
+                      console.error("Schedule deletion error:", error)
+                      toast.error("Failed to schedule deletion. Please try again.", { id: "delete-account" })
                     }
                   }}
                   className="w-full"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete My Account
+                  Schedule Account Deletion (30 days)
                 </Button>
               </div>
             </CardContent>

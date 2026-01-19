@@ -11,7 +11,8 @@ import { ServicesView } from "@/components/views/services-view"
 import { SettingsView } from "@/components/views/settings-view"
 import { NewBookingDialog } from "@/components/dialogs/new-booking-dialog"
 import { Toaster } from "@/components/ui/sonner"
-import { getAppointmentsWithDetails, createAppointment } from "@/lib/db"
+import { DeletionWarningBanner } from "@/components/deletion-warning-banner"
+import { getAppointmentsWithDetails, createAppointment, getAccountDeletionStatus } from "@/lib/db"
 import type { AppointmentInsert, AppointmentWithDetails } from "@/types/database"
 import { toast } from "sonner"
 
@@ -42,6 +43,7 @@ export default function BeautyFlowApp() {
   const [globalSearch, setGlobalSearch] = useState("")
   const [currentDate, setCurrentDate] = useState(new Date())
   const [bookingPreset, setBookingPreset] = useState<{ time?: string; stylistId?: string } | null>(null)
+  const [deletionScheduledAt, setDeletionScheduledAt] = useState<Date | null>(null)
 
   // Date navigation handlers
   const handlePrevDay = () => setCurrentDate((prev) => subDays(prev, 1))
@@ -56,7 +58,14 @@ export default function BeautyFlowApp() {
   // Load appointments from Supabase on mount
   useEffect(() => {
     loadAppointments()
+    checkDeletionStatus()
   }, [])
+
+  // Check if account is scheduled for deletion
+  const checkDeletionStatus = async () => {
+    const status = await getAccountDeletionStatus()
+    setDeletionScheduledAt(status)
+  }
 
   const loadAppointments = async () => {
     try {
@@ -144,6 +153,13 @@ export default function BeautyFlowApp() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
+      {/* Show deletion warning banner if account is scheduled for deletion */}
+      {deletionScheduledAt && (
+        <DeletionWarningBanner
+          deletionDate={deletionScheduledAt}
+          onCancelled={() => setDeletionScheduledAt(null)}
+        />
+      )}
       <MobileHeader
         activeTab={activeTab}
         onBookClick={() => setBookingDialogOpen(true)}

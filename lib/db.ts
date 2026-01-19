@@ -982,3 +982,59 @@ export async function deleteAllUserData(): Promise<void> {
 
     console.log('All user data deleted successfully')
 }
+
+// ============ SOFT DELETE (GRACE PERIOD) ============
+
+/**
+ * Schedule account for deletion in 30 days.
+ * User can still use the account during grace period.
+ */
+export async function scheduleAccountDeletion(): Promise<Date> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const deletionDate = new Date()
+    deletionDate.setDate(deletionDate.getDate() + 30)
+
+    const { error } = await supabase
+        .from('profiles')
+        .update({ deletion_scheduled_at: deletionDate.toISOString() })
+        .eq('id', user.id)
+
+    if (error) throw error
+    return deletionDate
+}
+
+/**
+ * Cancel scheduled account deletion.
+ */
+export async function cancelAccountDeletion(): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const { error } = await supabase
+        .from('profiles')
+        .update({ deletion_scheduled_at: null })
+        .eq('id', user.id)
+
+    if (error) throw error
+}
+
+/**
+ * Get account deletion status.
+ * Returns the scheduled deletion date or null if not scheduled.
+ */
+export async function getAccountDeletionStatus(): Promise<Date | null> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+
+    const { data, error } = await supabase
+        .from('profiles')
+        .select('deletion_scheduled_at')
+        .eq('id', user.id)
+        .single()
+
+    if (error || !data?.deletion_scheduled_at) return null
+    return new Date(data.deletion_scheduled_at)
+}
+

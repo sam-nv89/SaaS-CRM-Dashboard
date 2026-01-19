@@ -31,6 +31,7 @@ export interface Appointment {
   master: string
   stylistId?: string // Added ID
   masterColor: string
+  price?: number
 }
 
 export default function BeautyFlowApp() {
@@ -92,6 +93,7 @@ export default function BeautyFlowApp() {
           stylistId: apt.stylist_id,
           masterColor: apt.stylist?.color ?? (apt.stylist_id ? 'bg-gray-400' : apt.master_color),
           notes: notes, // Pass notes for edit dialog
+          price: apt.service?.price
         }
       })
 

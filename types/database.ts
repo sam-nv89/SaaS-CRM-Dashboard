@@ -59,7 +59,7 @@ export interface Appointment {
  */
 export interface AppointmentWithDetails extends Appointment {
     client: { name: string } | null
-    service: { name: string } | null
+    service: { name: string; price: number } | null
     stylist?: { name: string, color: string } | null
 }
 

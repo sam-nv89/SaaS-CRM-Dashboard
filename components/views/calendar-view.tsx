@@ -446,15 +446,15 @@ export function CalendarView({
               <p className="text-muted-foreground">No stylists available</p>
             </div>
           ) : (
-            <div className="border rounded-xl shadow-sm bg-card overflow-hidden">
-              <div className="overflow-x-auto">
+            <div className="border rounded-xl shadow-sm bg-card overflow-hidden flex flex-col max-h-[75vh]">
+              <div className="overflow-auto relative">
                 <div className="min-w-[600px] divide-y divide-border">
                   {/* Header Row - Stylists */}
                   <div
-                    className="grid sticky top-0 bg-background/95 backdrop-blur z-20 border-b border-border"
+                    className="grid sticky top-0 bg-background/95 backdrop-blur z-20 border-b border-border shadow-sm"
                     style={{ gridTemplateColumns: `60px repeat(${stylists.length}, 1fr)` }}
                   >
-                    <div className="p-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center border-r border-border/50">
+                    <div className="p-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center border-r border-border/50 bg-background/95 backdrop-blur sticky left-0 z-30">
                       Time
                     </div>
                     {stylists.map((stylist) => (
@@ -473,71 +473,76 @@ export function CalendarView({
                   </div>
 
                   {/* Time Slots Grid */}
-                  <div className="bg-background">
+                  <div className="bg-muted/5">
                     {gridTimeSlots.map((timeSlot) => {
-                      // Note: We're not using loop-level rowspan skip logic here because we rely on empty divs for layout
-                      // but we conditionally render content inside.
-
                       return (
                         <div
                           key={timeSlot}
-                          className="grid group hover:bg-muted/10 transition-colors"
+                          className="grid group hover:bg-muted/10 transition-colors border-b border-border/40 last:border-0"
                           style={{ gridTemplateColumns: `60px repeat(${stylists.length}, 1fr)` }}
                         >
                           {/* Time Label */}
-                          <div className="py-2 px-1 text-xs text-muted-foreground font-medium text-center border-r border-border/50 flex items-start justify-center pt-3">
-                            {timeSlot.endsWith('00') ? timeSlot : <span className="text-muted-foreground/40 text-[10px]">{timeSlot.split(':')[1]}</span>}
+                          <div className={`
+                            py-2 px-1 text-[10px] text-muted-foreground font-medium text-center border-r border-border/50 
+                            flex items-start justify-center pt-2 sticky left-0 z-10 
+                            bg-background/95 backdrop-blur border-r-2 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]
+                            ${timeSlot.endsWith('00') ? 'text-foreground font-semibold' : 'opacity-50'}
+                          `}>
+                            {timeSlot}
                           </div>
 
                           {/* Stylist Cells */}
                           {stylists.map((stylist) => {
                             const apt = findAppointmentAtSlot(timeSlot, stylist.id)
                             const isStart = apt && apt.time === timeSlot
-                            // To handle rowspan visually in a CSS Grid row-by-row structure without true rowspan, 
-                            // we need to be careful. The previous implementation used calculated height spanning multiple rows.
-                            // We will keep that "overflow" logic but ensure z-index is correct.
-
                             const isOccupiedByPrevious = apt !== null && !isStart
 
+                            // For occupied/empty slots, use a fixed height to ensure grid alignment
+                            // Standard row height: 36px (condensed)
+                            const ROW_H = 36
+
                             if (isOccupiedByPrevious) {
-                              // Render placeholder to maintain grid scale, but invisible
-                              return <div key={stylist.id} className="min-h-[44px] border-r border-border/30 last:border-r-0" />
+                              return <div key={stylist.id} className={`h-[${ROW_H}px] border-r border-border/30 last:border-r-0`} />
                             }
 
                             if (isStart && apt) {
                               const span = getAppointmentSpan(apt)
-                              // Height calculation: 44px base height * span + borders
-                              const heightPx = span * 44
+                              const heightPx = span * ROW_H
 
                               return (
                                 <div
                                   key={stylist.id}
-                                  className="relative min-h-[44px] border-r border-border/30 last:border-r-0 p-0.5 z-10"
-                                  style={{ gridRow: `span ${span}` }} // Visual hint for dev, but CSS grid needs native span or absolute
+                                  className={`relative h-[${ROW_H}px] border-r border-border/30 last:border-r-0 p-0.5 z-10`}
+                                  style={{ gridRow: `span ${span}` }}
                                 >
-                                  {/* Absolute Card overlaying properly */}
+                                  {/* Appointment Card */}
                                   <div
                                     className={`
-                                      absolute top-0 left-0 right-0 z-10 m-1 rounded-md shadow-sm border text-xs
-                                      flex flex-col p-2 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md
+                                      absolute top-0 left-0 right-0 z-10 m-0.5 rounded-md shadow-sm border text-xs
+                                      flex flex-col p-1.5 cursor-pointer transition-all hover:scale-[1.01] hover:shadow-md
                                       ${statusStyles[apt.status]}
-                                      bg-card border-l-[3px]
+                                      bg-card border-l-[3px] overflow-hidden
                                     `}
                                     style={{
-                                      height: `calc(${heightPx}px - 8px)`, // Subtract margins
-                                      borderColor: apt.masterColor ? undefined : undefined // Use status border or override? Let's use status border styles
+                                      height: `calc(${heightPx}px - 4px)`,
+                                      borderColor: apt.masterColor ? undefined : undefined
                                     }}
                                     onClick={(e) => {
                                       e.stopPropagation()
                                       handleEdit(apt)
                                     }}
                                   >
-                                    <div className="flex justify-between items-start">
+                                    <div className="flex justify-between items-start gap-1">
                                       <span className="font-semibold text-foreground truncate">{apt.clientName}</span>
-                                      <span className="text-[10px] opacity-70 font-mono">{apt.time}</span>
+                                      <span className="text-[9px] opacity-70 font-mono whitespace-nowrap">{apt.time}</span>
                                     </div>
-                                    <div className="mt-auto pt-1">
-                                      <p className="truncate opacity-80">{apt.service}</p>
+                                    <div className="flex justify-between items-end mt-auto pt-0.5">
+                                      <p className="truncate opacity-80 text-[10px]">{apt.service}</p>
+                                      {apt.price && (
+                                        <span className="text-[10px] font-semibold opacity-90 ml-1 bg-background/50 px-1 rounded">
+                                          ${apt.price}
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -548,7 +553,7 @@ export function CalendarView({
                             return (
                               <div
                                 key={stylist.id}
-                                className="min-h-[44px] border-r border-border/30 last:border-r-0 relative cursor-pointer group/cell"
+                                className={`h-[${ROW_H}px] border-r border-border/30 last:border-r-0 relative cursor-pointer group/cell`}
                                 onClick={() => {
                                   if (onNewBookingWithPreset) {
                                     onNewBookingWithPreset({ time: timeSlot, stylistId: stylist.id })
@@ -557,8 +562,9 @@ export function CalendarView({
                                   }
                                 }}
                               >
-                                <div className="absolute inset-0 m-0.5 rounded opacity-0 group-hover/cell:opacity-100 bg-primary/5 transition-opacity flex items-center justify-center">
-                                  <Plus className="h-4 w-4 text-primary opacity-50" />
+                                {/* Hover effect fills the cell */}
+                                <div className="absolute inset-0 m-px rounded opacity-0 group-hover/cell:opacity-100 bg-primary/5 transition-opacity flex items-center justify-center">
+                                  <Plus className="h-3 w-3 text-primary opacity-40" />
                                 </div>
                               </div>
                             )

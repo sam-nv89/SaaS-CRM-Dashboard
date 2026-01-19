@@ -235,7 +235,7 @@ export async function getAppointmentsWithDetails(date?: string): Promise<Appoint
         .select(`
             *,
             client:clients(name),
-            service:services(name),
+            service:services(name, price),
             stylist:stylists(name, color)
         `)
         .order('date', { ascending: true })

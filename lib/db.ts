@@ -913,3 +913,72 @@ export async function getAvailableTimeSlots(
     console.log(`[DEBUG] Generated ${slots.length} available slots`)
     return slots
 }
+
+// ============ ACCOUNT DELETION ============
+
+/**
+ * Delete all data associated with the current user.
+ * This includes: clients, appointments, services, stylists, settings, categories.
+ * Note: The actual auth user deletion must be done via Supabase Admin API or manually.
+ */
+export async function deleteAllUserData(): Promise<void> {
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+        throw new Error('Not authenticated')
+    }
+
+    const userId = user.id
+
+    // Delete in order to respect foreign key constraints
+    // 1. Delete appointments first (references clients, services, stylists)
+    const { error: aptError } = await supabase
+        .from('appointments')
+        .delete()
+        .eq('user_id', userId)
+    if (aptError) console.error('Error deleting appointments:', aptError)
+
+    // 2. Delete clients
+    const { error: clientError } = await supabase
+        .from('clients')
+        .delete()
+        .eq('user_id', userId)
+    if (clientError) console.error('Error deleting clients:', clientError)
+
+    // 3. Delete services
+    const { error: serviceError } = await supabase
+        .from('services')
+        .delete()
+        .eq('user_id', userId)
+    if (serviceError) console.error('Error deleting services:', serviceError)
+
+    // 4. Delete stylists
+    const { error: stylistError } = await supabase
+        .from('stylists')
+        .delete()
+        .eq('user_id', userId)
+    if (stylistError) console.error('Error deleting stylists:', stylistError)
+
+    // 5. Delete categories
+    const { error: catError } = await supabase
+        .from('categories')
+        .delete()
+        .eq('user_id', userId)
+    if (catError) console.error('Error deleting categories:', catError)
+
+    // 6. Delete settings
+    const { error: settingsError } = await supabase
+        .from('settings')
+        .delete()
+        .eq('user_id', userId)
+    if (settingsError) console.error('Error deleting settings:', settingsError)
+
+    // 7. Delete profile
+    const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId)
+    if (profileError) console.error('Error deleting profile:', profileError)
+
+    console.log('All user data deleted successfully')
+}

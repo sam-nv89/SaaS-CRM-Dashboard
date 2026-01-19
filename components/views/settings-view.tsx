@@ -748,6 +748,74 @@ export function SettingsView() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Danger Zone - Account Deletion */}
+          <Card className="border-destructive/30 bg-destructive/5 shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2 text-destructive">
+                <Trash2 className="h-4 w-4" />
+                Danger Zone
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Delete Account</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Permanently delete your account and all associated data including clients, appointments, services, and settings.
+                    This action cannot be undone.
+                  </p>
+                </div>
+                <Button
+                  variant="destructive"
+                  onClick={async () => {
+                    const confirmed = window.confirm(
+                      "Are you absolutely sure you want to delete your account?\n\n" +
+                      "This will permanently remove:\n" +
+                      "• All your clients\n" +
+                      "• All appointments\n" +
+                      "• All services\n" +
+                      "• All settings\n" +
+                      "• Your user profile\n\n" +
+                      "This action CANNOT be undone!"
+                    )
+                    if (!confirmed) return
+
+                    const doubleConfirm = window.prompt(
+                      "To confirm deletion, type DELETE in the box below:"
+                    )
+                    if (doubleConfirm !== "DELETE") {
+                      toast.error("Account deletion cancelled")
+                      return
+                    }
+
+                    try {
+                      toast.loading("Deleting account...", { id: "delete-account" })
+
+                      // Delete all user data first
+                      const { deleteAllUserData } = await import("@/lib/db")
+                      await deleteAllUserData()
+
+                      // Sign out
+                      await supabase.auth.signOut()
+
+                      toast.success("Account deleted successfully", { id: "delete-account" })
+
+                      // Redirect to login
+                      window.location.href = "/login?message=" + encodeURIComponent("Your account has been deleted") + "&type=success"
+                    } catch (error) {
+                      console.error("Delete account error:", error)
+                      toast.error("Failed to delete account. Please contact support.", { id: "delete-account" })
+                    }
+                  }}
+                  className="w-full"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete My Account
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

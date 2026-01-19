@@ -515,7 +515,7 @@ export function CalendarView({
 
                             if (isOccupiedByPrevious) {
                               // Occupied by a previous row's appointment - make transparent so card shows through
-                              return <div key={stylist.id} className={`h-[${ROW_H}px] border-r border-border/30 last:border-r-0 bg-transparent pointer-events-none`} />
+                              return <div key={stylist.id} style={{ height: `${ROW_H}px` }} className={`border-r border-border/30 last:border-r-0 bg-transparent pointer-events-none`} />
                             }
 
                             if (isStart && apt) {
@@ -533,7 +533,8 @@ export function CalendarView({
                               return (
                                 <div
                                   key={stylist.id}
-                                  className={`relative h-[${ROW_H}px] border-r border-border/30 last:border-r-0 p-0.5 z-10 overflow-visible`}
+                                  className={`relative border-r border-border/30 last:border-r-0 p-0.5 z-10 overflow-visible`}
+                                  style={{ height: `${ROW_H}px` }}
                                 >
                                   {/* Appointment Card - Precise Height */}
                                   <div
@@ -590,7 +591,8 @@ export function CalendarView({
                             return (
                               <div
                                 key={stylist.id}
-                                className={`h-[${ROW_H}px] border-r border-border/30 last:border-r-0 relative cursor-pointer group/cell`}
+                                className={`border-r border-border/30 last:border-r-0 relative cursor-pointer group/cell`}
+                                style={{ height: `${ROW_H}px` }}
                                 onClick={() => {
                                   if (onNewBookingWithPreset) {
                                     onNewBookingWithPreset({ time: timeSlot, stylistId: stylist.id })

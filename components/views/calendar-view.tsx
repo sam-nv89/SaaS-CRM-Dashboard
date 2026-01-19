@@ -534,34 +534,34 @@ export function CalendarView({
                                       handleEdit(apt)
                                     }}
                                   >
-                                    {/* Header: Time + Status indicator */}
-                                    <div className="flex justify-between items-center px-2 pt-1.5 pb-0.5">
-                                      <span className="text-[10px] font-mono font-semibold text-foreground/80">
-                                        {apt.time} — {apt.endTime}
+                                    {/* Header: Time + Price */}
+                                    <div className="flex justify-between items-center px-1.5 pt-1">
+                                      <span className="text-[10px] font-mono text-muted-foreground leading-none min-w-0 truncate">
+                                        {apt.time}-{apt.endTime}
                                       </span>
-                                      <div className={`w-2 h-2 rounded-full ${apt.status === 'confirmed' ? 'bg-confirmed' :
-                                        apt.status === 'pending' ? 'bg-pending' : 'bg-canceled'
-                                        }`} />
-                                    </div>
-
-                                    {/* Body: Client Name */}
-                                    <div className="px-2 flex-1 min-h-0">
-                                      <p className="font-semibold text-xs text-foreground truncate leading-tight">
-                                        {apt.clientName}
-                                      </p>
-                                      <p className="text-[10px] text-muted-foreground truncate">
-                                        {apt.service}
-                                      </p>
-                                    </div>
-
-                                    {/* Footer: Price */}
-                                    {apt.price && (
-                                      <div className="px-2 pb-1.5 mt-auto">
-                                        <span className="text-xs font-bold text-primary">
+                                      {apt.price && (
+                                        <span className="text-[10px] font-bold text-primary leading-none bg-primary/10 px-1 rounded-[2px] ml-1 flex-shrink-0">
                                           ${apt.price}
                                         </span>
+                                      )}
+                                    </div>
+
+                                    {/* Body: Content */}
+                                    <div className="px-1.5 flex flex-col justify-center flex-1 min-h-0">
+                                      <div className="flex items-center gap-1 mb-0.5">
+                                        {/* Status Dot */}
+                                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${apt.status === 'confirmed' ? 'bg-confirmed' :
+                                            apt.status === 'pending' ? 'bg-pending' : 'bg-canceled'
+                                          }`} />
+                                        <span className="font-bold text-xs text-foreground truncate leading-tight">
+                                          {apt.clientName}
+                                        </span>
                                       </div>
-                                    )}
+
+                                      <span className="text-[10px] text-muted-foreground truncate leading-none opacity-80">
+                                        {apt.service}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
                               )

@@ -39,7 +39,7 @@ export async function signup(formData: FormData) {
 
     // If email confirmation is required
     if (signUpData.user && !signUpData.session) {
-        return redirect('/login?message=Check your email to confirm your account&type=success')
+        return redirect('/signup?message=' + encodeURIComponent('Almost there! Please check your email inbox to verify your account. Check spam folder if needed.') + '&type=success')
     }
 
     // If auto-confirmed, also save to profiles table

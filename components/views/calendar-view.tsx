@@ -433,123 +433,140 @@ export function CalendarView({
 
       {/* Grid View - Staff Workload Table */}
       {viewMode === "Grid" && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-semibold text-foreground">Staff Schedule</h2>
-            <span className="text-sm text-muted-foreground">{format(currentDate, "MMM d, yyyy")}</span>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-lg font-semibold text-foreground tracking-tight">Staff Schedule</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground font-medium">{format(currentDate, "MMM d, yyyy")}</span>
+            </div>
           </div>
 
           {stylists.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="text-center py-12 border rounded-xl border-dashed bg-muted/20">
               <p className="text-muted-foreground">No stylists available</p>
             </div>
           ) : (
-            <div className="overflow-x-auto -mx-4 px-4">
-              <div className="min-w-[600px]">
-                {/* Header Row - Stylists */}
-                <div
-                  className="grid gap-1 mb-1 sticky top-0 bg-background z-10"
-                  style={{ gridTemplateColumns: `80px repeat(${stylists.length}, 1fr)` }}
-                >
-                  <div className="p-2 text-xs font-medium text-muted-foreground">Time</div>
-                  {stylists.map((stylist) => (
-                    <div
-                      key={stylist.id}
-                      className="p-2 text-center"
-                    >
-                      <div className={`w-3 h-3 rounded-full mx-auto mb-1 ${stylist.color}`} />
-                      <span className="text-xs font-medium text-foreground">{stylist.name}</span>
+            <div className="border rounded-xl shadow-sm bg-card overflow-hidden">
+              <div className="overflow-x-auto">
+                <div className="min-w-[600px] divide-y divide-border">
+                  {/* Header Row - Stylists */}
+                  <div
+                    className="grid sticky top-0 bg-background/95 backdrop-blur z-20 border-b border-border"
+                    style={{ gridTemplateColumns: `60px repeat(${stylists.length}, 1fr)` }}
+                  >
+                    <div className="p-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center border-r border-border/50">
+                      Time
                     </div>
-                  ))}
-                </div>
-
-                {/* Time Slots Grid */}
-                <div className="space-y-0.5">
-                  {gridTimeSlots.map((timeSlot, slotIndex) => {
-                    // Track which cells to skip (due to rowspan from previous appointments)
-                    const skipCells: Record<string, boolean> = {}
-
-                    return (
+                    {stylists.map((stylist) => (
                       <div
-                        key={timeSlot}
-                        className="grid gap-1"
-                        style={{ gridTemplateColumns: `80px repeat(${stylists.length}, 1fr)` }}
+                        key={stylist.id}
+                        className="p-3 flex items-center justify-center gap-2 border-r border-border/50 last:border-r-0 hover:bg-muted/30 transition-colors"
                       >
-                        {/* Time Label */}
-                        <div className="p-2 text-xs text-muted-foreground font-mono bg-secondary/30 rounded flex items-center">
-                          {timeSlot}
-                        </div>
+                        <Avatar className="h-6 w-6 border border-border">
+                          <AvatarFallback className={`text-[10px] ${stylist.color} bg-opacity-20 text-foreground`}>
+                            {stylist.name.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm font-medium text-foreground">{stylist.name}</span>
+                      </div>
+                    ))}
+                  </div>
 
-                        {/* Stylist Cells */}
-                        {stylists.map((stylist) => {
-                          const apt = findAppointmentAtSlot(timeSlot, stylist.id)
-                          const isStart = apt && apt.time === timeSlot
-                          const isOccupied = apt !== null && !isStart
+                  {/* Time Slots Grid */}
+                  <div className="bg-background">
+                    {gridTimeSlots.map((timeSlot) => {
+                      // Note: We're not using loop-level rowspan skip logic here because we rely on empty divs for layout
+                      // but we conditionally render content inside.
 
-                          // Skip rendering if this cell is part of a multi-slot appointment
-                          if (isOccupied) {
-                            return (
-                              <div
-                                key={stylist.id}
-                                className="min-h-[40px]"
-                              // This cell is visually merged with the appointment above
-                              />
-                            )
-                          }
+                      return (
+                        <div
+                          key={timeSlot}
+                          className="grid group hover:bg-muted/10 transition-colors"
+                          style={{ gridTemplateColumns: `60px repeat(${stylists.length}, 1fr)` }}
+                        >
+                          {/* Time Label */}
+                          <div className="py-2 px-1 text-xs text-muted-foreground font-medium text-center border-r border-border/50 flex items-start justify-center pt-3">
+                            {timeSlot.endsWith('00') ? timeSlot : <span className="text-muted-foreground/40 text-[10px]">{timeSlot.split(':')[1]}</span>}
+                          </div>
 
-                          if (isStart && apt) {
-                            const span = getAppointmentSpan(apt)
-                            return (
-                              <div
-                                key={stylist.id}
-                                className={`
-                                  rounded-lg border cursor-pointer transition-all hover:ring-2 hover:ring-primary/50
-                                  ${apt.status === 'canceled' ? 'opacity-50' : ''}
-                                  ${apt.masterColor} bg-opacity-20
-                                `}
-                                style={{
-                                  minHeight: `${span * 40 + (span - 1) * 2}px`,
-                                  gridRow: `span ${span}`
-                                }}
-                                onClick={() => handleEdit(apt)}
-                              >
-                                <div className="p-2 h-full flex flex-col">
-                                  <div className="flex items-center gap-1 mb-1">
-                                    <Badge
-                                      variant="outline"
-                                      className={`text-[8px] px-1 py-0 ${statusStyles[apt.status]}`}
-                                    >
-                                      {apt.status.charAt(0).toUpperCase()}
-                                    </Badge>
-                                    <span className="text-[10px] text-muted-foreground">{apt.time}</span>
+                          {/* Stylist Cells */}
+                          {stylists.map((stylist) => {
+                            const apt = findAppointmentAtSlot(timeSlot, stylist.id)
+                            const isStart = apt && apt.time === timeSlot
+                            // To handle rowspan visually in a CSS Grid row-by-row structure without true rowspan, 
+                            // we need to be careful. The previous implementation used calculated height spanning multiple rows.
+                            // We will keep that "overflow" logic but ensure z-index is correct.
+
+                            const isOccupiedByPrevious = apt !== null && !isStart
+
+                            if (isOccupiedByPrevious) {
+                              // Render placeholder to maintain grid scale, but invisible
+                              return <div key={stylist.id} className="min-h-[44px] border-r border-border/30 last:border-r-0" />
+                            }
+
+                            if (isStart && apt) {
+                              const span = getAppointmentSpan(apt)
+                              // Height calculation: 44px base height * span + borders
+                              const heightPx = span * 44
+
+                              return (
+                                <div
+                                  key={stylist.id}
+                                  className="relative min-h-[44px] border-r border-border/30 last:border-r-0 p-0.5 z-10"
+                                  style={{ gridRow: `span ${span}` }} // Visual hint for dev, but CSS grid needs native span or absolute
+                                >
+                                  {/* Absolute Card overlaying properly */}
+                                  <div
+                                    className={`
+                                      absolute top-0 left-0 right-0 z-10 m-1 rounded-md shadow-sm border text-xs
+                                      flex flex-col p-2 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md
+                                      ${statusStyles[apt.status]}
+                                      bg-card border-l-[3px]
+                                    `}
+                                    style={{
+                                      height: `calc(${heightPx}px - 8px)`, // Subtract margins
+                                      borderColor: apt.masterColor ? undefined : undefined // Use status border or override? Let's use status border styles
+                                    }}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleEdit(apt)
+                                    }}
+                                  >
+                                    <div className="flex justify-between items-start">
+                                      <span className="font-semibold text-foreground truncate">{apt.clientName}</span>
+                                      <span className="text-[10px] opacity-70 font-mono">{apt.time}</span>
+                                    </div>
+                                    <div className="mt-auto pt-1">
+                                      <p className="truncate opacity-80">{apt.service}</p>
+                                    </div>
                                   </div>
-                                  <p className="text-xs font-medium text-foreground truncate">{apt.clientName}</p>
-                                  <p className="text-[10px] text-muted-foreground truncate">{apt.service}</p>
+                                </div>
+                              )
+                            }
+
+                            // Empty slot
+                            return (
+                              <div
+                                key={stylist.id}
+                                className="min-h-[44px] border-r border-border/30 last:border-r-0 relative cursor-pointer group/cell"
+                                onClick={() => {
+                                  if (onNewBookingWithPreset) {
+                                    onNewBookingWithPreset({ time: timeSlot, stylistId: stylist.id })
+                                  } else {
+                                    onNewBooking()
+                                  }
+                                }}
+                              >
+                                <div className="absolute inset-0 m-0.5 rounded opacity-0 group-hover/cell:opacity-100 bg-primary/5 transition-opacity flex items-center justify-center">
+                                  <Plus className="h-4 w-4 text-primary opacity-50" />
                                 </div>
                               </div>
                             )
-                          }
-
-                          // Empty slot - clickable to create new booking
-                          return (
-                            <div
-                              key={stylist.id}
-                              className="min-h-[40px] rounded-lg border border-dashed border-border/50 hover:border-primary hover:bg-primary/5 cursor-pointer transition-all group flex items-center justify-center"
-                              onClick={() => {
-                                if (onNewBookingWithPreset) {
-                                  onNewBookingWithPreset({ time: timeSlot, stylistId: stylist.id })
-                                } else {
-                                  onNewBooking()
-                                }
-                              }}
-                            >
-                              <Plus className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary transition-colors" />
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )
-                  })}
+                          })}
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
             </div>

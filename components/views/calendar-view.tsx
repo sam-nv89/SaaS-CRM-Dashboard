@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { ChevronRight, ChevronLeft, Plus, Loader2, Calendar as CalendarIcon } from "lucide-react"
+import { ChevronRight, ChevronLeft, Loader2, Calendar as CalendarIcon } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -252,14 +252,7 @@ export function CalendarView({
               </Button>
             ))}
           </div>
-          <Button
-            size="sm"
-            className="bg-primary hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
-            onClick={onNewBooking}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            New
-          </Button>
+
         </div>
 
         {/* Stylist Filter */}

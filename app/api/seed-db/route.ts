@@ -1,9 +1,17 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/server'
 import { startOfWeek, addDays, format, parse, addMinutes } from 'date-fns'
 
 export async function GET() {
     try {
+        const supabase = await createClient()
+
+        // 0. Check authentication
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
         // 1. Get reference data
         const { data: services, error: servicesError } = await supabase.from('services').select('*')
         const { data: clients, error: clientsError } = await supabase.from('clients').select('*')
@@ -54,17 +62,13 @@ export async function GET() {
             const endTimeDate = addMinutes(startTime, durationMin)
             const endTimeStr = format(endTimeDate, 'HH:mm')
 
-            // Fix status: use 'canceled' (single l) matching typings. 
-            // If DB accepts 'no_show', we can try it, but let's stick to known types first to fix the error.
-            // Actually, let's try to map 'no-show' to 'canceled' for now to be safe, 
-            // OR rely on the fact that if it fails, we will now see the error message.
-            // I will use 'canceled' strictly for now.
             const statusRandom = Math.random()
             let status = 'confirmed'
             if (statusRandom > 0.9) status = 'canceled'
             else if (statusRandom > 0.8) status = 'pending'
 
             newAppointments.push({
+                user_id: user.id, // Explicitly set user_id
                 client_id: client.id,
                 service_id: service.id,
                 stylist_id: stylist.id,
@@ -83,7 +87,6 @@ export async function GET() {
 
         if (error) {
             console.error("Supabase Insert Error:", error)
-            // Return full error object
             return NextResponse.json({ error: error.message || JSON.stringify(error), details: error }, { status: 500 })
         }
 

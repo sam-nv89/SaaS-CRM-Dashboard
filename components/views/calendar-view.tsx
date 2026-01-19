@@ -510,8 +510,8 @@ export function CalendarView({
                             const isOccupiedByPrevious = apt !== null && !isStart
 
                             // For occupied/empty slots, use a fixed height to ensure grid alignment
-                            // Standard row height: 36px (condensed)
-                            const ROW_H = 36
+                            // Standard row height: 48px (increased for readability)
+                            const ROW_H = 48
 
                             if (isOccupiedByPrevious) {
                               // Occupied by a previous row's appointment - make transparent so card shows through

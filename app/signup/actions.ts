@@ -32,9 +32,9 @@ export async function signup(formData: FormData) {
         return redirect(`/signup?message=${encodeURIComponent(error.message)}&type=error`)
     }
 
-    // Check if user already exists
+    // Check if user already exists (email already registered)
     if (signUpData.user && signUpData.user.identities && signUpData.user.identities.length === 0) {
-        return redirect('/signup?message=User already exists&type=error')
+        return redirect('/signup?message=' + encodeURIComponent('This email is already registered. Try signing in or use a different email.') + '&type=error')
     }
 
     // If email confirmation is required

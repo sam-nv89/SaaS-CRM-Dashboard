@@ -447,31 +447,32 @@ export function CalendarView({
             </div>
           ) : (
             <div className="border rounded-xl shadow-sm bg-card overflow-hidden flex flex-col max-h-[75vh]">
-              <div className="overflow-auto relative">
-                <div className="min-w-[600px] divide-y divide-border">
-                  {/* Header Row - Stylists */}
+              {/* Fixed Header Row - Stylists */}
+              <div
+                className="grid bg-background border-b-2 border-border shadow-sm flex-shrink-0"
+                style={{ gridTemplateColumns: `60px repeat(${stylists.length}, 1fr)` }}
+              >
+                <div className="p-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center border-r border-border/50 bg-background">
+                  Time
+                </div>
+                {stylists.map((stylist) => (
                   <div
-                    className="grid sticky top-0 bg-background/95 backdrop-blur z-20 border-b border-border shadow-sm"
-                    style={{ gridTemplateColumns: `60px repeat(${stylists.length}, 1fr)` }}
+                    key={stylist.id}
+                    className="p-3 flex items-center justify-center gap-2 border-r border-border/50 last:border-r-0 hover:bg-muted/30 transition-colors bg-background"
                   >
-                    <div className="p-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center border-r border-border/50 bg-background/95 backdrop-blur sticky left-0 z-30">
-                      Time
-                    </div>
-                    {stylists.map((stylist) => (
-                      <div
-                        key={stylist.id}
-                        className="p-3 flex items-center justify-center gap-2 border-r border-border/50 last:border-r-0 hover:bg-muted/30 transition-colors"
-                      >
-                        <Avatar className="h-6 w-6 border border-border">
-                          <AvatarFallback className={`text-[10px] ${stylist.color} bg-opacity-20 text-foreground`}>
-                            {stylist.name.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium text-foreground">{stylist.name}</span>
-                      </div>
-                    ))}
+                    <Avatar className="h-6 w-6 border border-border">
+                      <AvatarFallback className={`text-[10px] ${stylist.color} bg-opacity-20 text-foreground`}>
+                        {stylist.name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium text-foreground">{stylist.name}</span>
                   </div>
+                ))}
+              </div>
 
+              {/* Scrollable Time Slots Grid */}
+              <div className="overflow-auto flex-1">
+                <div className="min-w-[600px]">
                   {/* Time Slots Grid */}
                   <div className="bg-muted/5">
                     {gridTimeSlots.map((timeSlot) => {
@@ -483,10 +484,10 @@ export function CalendarView({
                         >
                           {/* Time Label */}
                           <div className={`
-                            py-2 px-1 text-[10px] text-muted-foreground font-medium text-center border-r border-border/50 
+                            py-2 px-1 text-[11px] font-medium text-center border-r border-border/50 
                             flex items-start justify-center pt-2 sticky left-0 z-10 
                             bg-background/95 backdrop-blur border-r-2 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]
-                            ${timeSlot.endsWith('00') ? 'text-foreground font-semibold' : 'opacity-50'}
+                            ${timeSlot.endsWith(':00') ? 'text-primary font-bold' : 'text-muted-foreground'}
                           `}>
                             {timeSlot}
                           </div>
@@ -515,35 +516,52 @@ export function CalendarView({
                                   className={`relative h-[${ROW_H}px] border-r border-border/30 last:border-r-0 p-0.5 z-10`}
                                   style={{ gridRow: `span ${span}` }}
                                 >
-                                  {/* Appointment Card */}
+                                  {/* Appointment Card - Improved Layout */}
                                   <div
                                     className={`
-                                      absolute top-0 left-0 right-0 z-10 m-0.5 rounded-md shadow-sm border text-xs
-                                      flex flex-col p-1.5 cursor-pointer transition-all hover:scale-[1.01] hover:shadow-md
+                                      absolute top-0 left-0 right-0 z-10 m-0.5 rounded-lg shadow-sm border
+                                      flex flex-col cursor-pointer transition-all hover:scale-[1.01] hover:shadow-md
                                       ${statusStyles[apt.status]}
-                                      bg-card border-l-[3px] overflow-hidden
+                                      bg-card overflow-hidden
                                     `}
                                     style={{
                                       height: `calc(${heightPx}px - 4px)`,
-                                      borderColor: apt.masterColor ? undefined : undefined
+                                      borderLeftWidth: '4px',
+                                      borderLeftColor: apt.masterColor?.includes('bg-') ? undefined : apt.masterColor
                                     }}
                                     onClick={(e) => {
                                       e.stopPropagation()
                                       handleEdit(apt)
                                     }}
                                   >
-                                    <div className="flex justify-between items-start gap-1">
-                                      <span className="font-semibold text-foreground truncate">{apt.clientName}</span>
-                                      <span className="text-[9px] opacity-70 font-mono whitespace-nowrap">{apt.time}</span>
+                                    {/* Header: Time + Status indicator */}
+                                    <div className="flex justify-between items-center px-2 pt-1.5 pb-0.5">
+                                      <span className="text-[10px] font-mono font-semibold text-foreground/80">
+                                        {apt.time} — {apt.endTime}
+                                      </span>
+                                      <div className={`w-2 h-2 rounded-full ${apt.status === 'confirmed' ? 'bg-confirmed' :
+                                        apt.status === 'pending' ? 'bg-pending' : 'bg-canceled'
+                                        }`} />
                                     </div>
-                                    <div className="flex justify-between items-end mt-auto pt-0.5">
-                                      <p className="truncate opacity-80 text-[10px]">{apt.service}</p>
-                                      {apt.price && (
-                                        <span className="text-[10px] font-semibold opacity-90 ml-1 bg-background/50 px-1 rounded">
+
+                                    {/* Body: Client Name */}
+                                    <div className="px-2 flex-1 min-h-0">
+                                      <p className="font-semibold text-xs text-foreground truncate leading-tight">
+                                        {apt.clientName}
+                                      </p>
+                                      <p className="text-[10px] text-muted-foreground truncate">
+                                        {apt.service}
+                                      </p>
+                                    </div>
+
+                                    {/* Footer: Price */}
+                                    {apt.price && (
+                                      <div className="px-2 pb-1.5 mt-auto">
+                                        <span className="text-xs font-bold text-primary">
                                           ${apt.price}
                                         </span>
-                                      )}
-                                    </div>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               )

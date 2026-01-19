@@ -12,19 +12,75 @@ export async function GET() {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        // 1. Get reference data
-        const { data: services, error: servicesError } = await supabase.from('services').select('*')
-        const { data: clients, error: clientsError } = await supabase.from('clients').select('*')
-        const { data: stylists, error: stylistsError } = await supabase.from('stylists').select('*').eq('active', true)
+        // 1. Get OR Create reference data
 
-        if (servicesError) throw servicesError
-        if (clientsError) throw clientsError
-        if (stylistsError) throw stylistsError
+        // --- SERVICES ---
+        let { data: services } = await supabase.from('services').select('*')
+        if (!services || services.length === 0) {
+            console.log('Seeding default services...')
+            const defaultServices = [
+                { name: 'Haircut (Women)', duration: '60 min', price: 80, category_id: null, color: 'bg-pink-500' },
+                { name: 'Haircut (Men)', duration: '45 min', price: 50, category_id: null, color: 'bg-blue-500' },
+                { name: 'Coloring', duration: '120 min', price: 150, category_id: null, color: 'bg-purple-500' },
+                { name: 'Styling', duration: '30 min', price: 40, category_id: null, color: 'bg-yellow-500' },
+                { name: 'Manicure', duration: '60 min', price: 45, category_id: null, color: 'bg-red-500' }
+            ]
+            // Add user_id to services
+            const servicesToInsert = defaultServices.map(s => ({ ...s, user_id: user.id }))
+            const { data: newServices, error: createServiceError } = await supabase
+                .from('services')
+                .insert(servicesToInsert)
+                .select()
 
+            if (createServiceError) throw createServiceError
+            services = newServices
+        }
+
+        // --- CLIENTS ---
+        let { data: clients } = await supabase.from('clients').select('*')
+        if (!clients || clients.length === 0) {
+            console.log('Seeding default clients...')
+            const defaultClients = [
+                { name: 'Alice Johnson', email: 'alice@example.com', phone: '+1234567890' },
+                { name: 'Bob Smith', email: 'bob@example.com', phone: '+1987654321' },
+                { name: 'Carol White', email: 'carol@example.com', phone: '+1122334455' },
+                { name: 'David Brown', email: 'david@example.com', phone: '+1555666777' },
+                { name: 'Eve Davis', email: 'eve@example.com', phone: '+1999888777' }
+            ]
+            const clientsToInsert = defaultClients.map(c => ({ ...c, user_id: user.id }))
+            const { data: newClients, error: createClientError } = await supabase
+                .from('clients')
+                .insert(clientsToInsert)
+                .select()
+
+            if (createClientError) throw createClientError
+            clients = newClients
+        }
+
+        // --- STYLISTS ---
+        let { data: stylists } = await supabase.from('stylists').select('*').eq('active', true)
+        if (!stylists || stylists.length === 0) {
+            console.log('Seeding default stylists...')
+            const defaultStylists = [
+                { name: 'Emma', color: 'bg-pink-500', active: true },
+                { name: 'Sophia', color: 'bg-purple-500', active: true },
+                { name: 'Olivia', color: 'bg-teal-500', active: true }
+            ]
+            const stylistsToInsert = defaultStylists.map(s => ({ ...s, user_id: user.id }))
+            const { data: newStylists, error: createStylistError } = await supabase
+                .from('stylists')
+                .insert(stylistsToInsert)
+                .select()
+
+            if (createStylistError) throw createStylistError
+            stylists = newStylists
+        }
+
+        // Final validation
         if (!services?.length || !clients?.length || !stylists?.length) {
             return NextResponse.json({
-                error: 'Missing reference data. Ensure you have Services, Clients, and Stylists in the database.'
-            }, { status: 400 })
+                error: 'Failed to generate reference data.'
+            }, { status: 500 })
         }
 
         // 2. Generate 50 appointments

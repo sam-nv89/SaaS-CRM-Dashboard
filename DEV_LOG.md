@@ -728,3 +728,10 @@ Dashboard теперь отображает реальные данные из S
 
 Терминал полностью восстановлен. Можно переходить к продуктовым задачам.
 
+**Расширенное тестирование (Stress Test):**
+- `node -v` (v23.3.0) — OK
+- `npm -v` (10.9.0) — OK
+- `git log` (multiline output) — OK
+- `ping` (async process) — OK
+- `File IO` (write/read/delete) — OK
+

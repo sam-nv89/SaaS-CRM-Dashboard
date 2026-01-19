@@ -508,15 +508,21 @@ export function CalendarView({
 
                             if (isStart && apt) {
                               const span = getAppointmentSpan(apt)
-                              const heightPx = span * ROW_H
+                              // Calculate exact visual height based on duration
+                              // Each 30min slot is ROW_H px
+                              const durationMinutes = parseInt(apt.duration) || 30
+                              const exactHeightPx = (durationMinutes / 30) * ROW_H
 
                               return (
                                 <div
-                                  key={stylist.id}
-                                  className={`relative h-[${ROW_H}px] border-r border-border/30 last:border-r-0 p-0.5 z-10`}
-                                  style={{ gridRow: `span ${span}` }}
+                                  key={`${apt.id}-${timeSlot}`}
+                                  className={`relative border-r border-border/30 last:border-r-0 p-0.5 z-10 group/slot`}
+                                  style={{
+                                    gridRow: `span ${span}`,
+                                    height: `${span * ROW_H}px` // Container takes full grid space
+                                  }}
                                 >
-                                  {/* Appointment Card - Improved Layout */}
+                                  {/* Appointment Card */}
                                   <div
                                     className={`
                                       absolute top-0 left-0 right-0 z-10 m-0.5 rounded-lg shadow-sm border
@@ -525,7 +531,8 @@ export function CalendarView({
                                       bg-card overflow-hidden
                                     `}
                                     style={{
-                                      height: `calc(${heightPx}px - 4px)`,
+                                      // Visual height matches exact duration (minus margins)
+                                      height: `calc(${exactHeightPx}px - 4px)`,
                                       borderLeftWidth: '4px',
                                       borderLeftColor: apt.masterColor?.includes('bg-') ? undefined : apt.masterColor
                                     }}
@@ -535,30 +542,30 @@ export function CalendarView({
                                     }}
                                   >
                                     {/* Header: Time + Price */}
-                                    <div className="flex justify-between items-center px-1.5 pt-1">
-                                      <span className="text-[10px] font-mono text-muted-foreground leading-none min-w-0 truncate">
+                                    <div className="flex justify-between items-center px-2 pt-1.5">
+                                      <span className="text-xs font-mono text-muted-foreground leading-none min-w-0 truncate">
                                         {apt.time}-{apt.endTime}
                                       </span>
                                       {apt.price && (
-                                        <span className="text-[10px] font-bold text-primary leading-none bg-primary/10 px-1 rounded-[2px] ml-1 flex-shrink-0">
+                                        <span className="text-xs font-bold text-primary leading-none bg-primary/10 px-1.5 py-0.5 rounded ml-1 flex-shrink-0">
                                           ${apt.price}
                                         </span>
                                       )}
                                     </div>
 
                                     {/* Body: Content */}
-                                    <div className="px-1.5 flex flex-col justify-center flex-1 min-h-0">
-                                      <div className="flex items-center gap-1 mb-0.5">
+                                    <div className="px-2 flex flex-col justify-center flex-1 min-h-0 py-1">
+                                      <div className="flex items-center gap-1.5 mb-1">
                                         {/* Status Dot */}
-                                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${apt.status === 'confirmed' ? 'bg-confirmed' :
+                                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${apt.status === 'confirmed' ? 'bg-confirmed' :
                                             apt.status === 'pending' ? 'bg-pending' : 'bg-canceled'
                                           }`} />
-                                        <span className="font-bold text-xs text-foreground truncate leading-tight">
+                                        <span className="font-bold text-sm text-foreground truncate leading-tight">
                                           {apt.clientName}
                                         </span>
                                       </div>
 
-                                      <span className="text-[10px] text-muted-foreground truncate leading-none opacity-80">
+                                      <span className="text-xs text-muted-foreground truncate leading-none opacity-90">
                                         {apt.service}
                                       </span>
                                     </div>

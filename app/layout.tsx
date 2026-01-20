@@ -1,41 +1,38 @@
-import type React from "react"
-import type { Metadata, Viewport } from "next"
-import { Inter, Geist_Mono } from "next/font/google"
-import { Analytics } from "@vercel/analytics/next"
-import "./globals.css"
+import React from "react"
+import type { Metadata, Viewport } from 'next'
+import { Inter, Geist_Mono } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/next'
+import './globals.css'
 
-const _inter = Inter({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
+const inter = Inter({
+  subsets: ["latin"],
+  variable: '--font-inter'
+});
+const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "BeautyFlow - Salon Management",
-  description: "Modern CRM dashboard for beauty studios and individual masters",
-  generator: "v0.app",
-  icons: {
-    icon: [
-      {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "/icon.svg",
-        type: "image/svg+xml",
-      },
-    ],
-    apple: "/apple-icon.png",
+  title: 'BeautyFlow — Streamline Your Beauty Business',
+  description: 'The modern CRM for beauty salons and independent stylists. Smart scheduling, client management, and financial insights all in one place.',
+  keywords: ['salon software', 'booking system', 'beauty business', 'appointment scheduling', 'salon management', 'CRM for salons', 'beauty CRM'],
+  authors: [{ name: 'BeautyFlow' }],
+  openGraph: {
+    title: 'BeautyFlow — Streamline Your Beauty Business',
+    description: 'The modern CRM for beauty salons and independent stylists.',
+    type: 'website',
+    locale: 'en_US',
+    siteName: 'BeautyFlow',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'BeautyFlow — Streamline Your Beauty Business',
+    description: 'The modern CRM for beauty salons and independent stylists.',
   },
 }
 
 export const viewport: Viewport = {
-  width: "device-width",
+  themeColor: '#00A6A6',
+  width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  themeColor: "#0d9488",
 }
 
 export default function RootLayout({
@@ -45,7 +42,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`font-sans antialiased`}>
+      <body className={`${inter.className} font-sans antialiased`}>
         {children}
         <Analytics />
       </body>
